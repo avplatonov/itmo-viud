@@ -4,6 +4,8 @@ from bs4 import Comment
 import pandas as pd
 import numpy as np
 
+# Подсчет количества "ничьих" по очкам  и смен лидера во время игры
+
 codes = pd.read_csv("../csvs/oct.csv")
 list = codes.values.tolist()
 cod = []

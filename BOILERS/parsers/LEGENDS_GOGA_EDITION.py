@@ -4,6 +4,8 @@ from bs4 import Comment
 import pandas as pd
 import numpy as np
 
+# Подсчет времени игры звёзд команды
+
 codes = pd.read_excel("../csvs/legends_GOGA.xlsx")
 list = codes.values.tolist()
 first_legend = []

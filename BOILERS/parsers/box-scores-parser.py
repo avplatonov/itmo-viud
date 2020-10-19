@@ -2,6 +2,8 @@ from bs4 import BeautifulSoup
 from urllib.request import Request, urlopen
 import csv
 
+# Получение всех игр сезона
+
 links = ["https://www.basketball-reference.com/leagues/NBA_2020_games-october.html",
          "https://www.basketball-reference.com/leagues/NBA_2020_games-november.html",
          "https://www.basketball-reference.com/leagues/NBA_2020_games-december.html",

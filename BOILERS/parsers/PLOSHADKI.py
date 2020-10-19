@@ -4,6 +4,7 @@ from bs4 import Comment
 import pandas as pd
 import numpy as np
 
+# Подсчет смен площадок команд на момент игры
 
 data = pd.read_csv("../csvs/dates--h-v.csv", parse_dates=["GDate"])
 short = data

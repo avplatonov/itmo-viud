@@ -4,6 +4,8 @@ from bs4 import Comment
 import pandas as pd
 import numpy as np
 
+# Получение данных по каждой игре
+
 codes = pd.read_csv("../csvs/oct.csv")
 list = codes.values.tolist()
 cod = []
