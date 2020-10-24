@@ -13,7 +13,7 @@ class Photo(Document):
     avg_batch_likes_count: float = FloatField(required=True)
     avg_batch_views_count: float = FloatField(required=True)
 
-    image = ImageField()
+    image = ImageField(required=True)
 
     dt_created: datetime = DateTimeField(required=True, default=datetime.utcnow)
     dt_updated: datetime = DateTimeField(required=True, default=datetime.utcnow)
