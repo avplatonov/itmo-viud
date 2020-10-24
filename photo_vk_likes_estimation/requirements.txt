@@ -1,0 +1,2 @@
+Scrapy==2.4.0
+mongoengine==0.17.0
