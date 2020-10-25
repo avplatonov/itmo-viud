@@ -1,6 +1,5 @@
 ﻿module ShopCrawler.Ebay.Auth
 
-open System
 open ShopCrawler.Common
 open Types
 open Providers

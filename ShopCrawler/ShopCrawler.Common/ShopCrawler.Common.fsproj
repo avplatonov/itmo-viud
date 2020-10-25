@@ -6,6 +6,7 @@
 
     <ItemGroup>
       <Compile Include="Encoding.fs" />
+      <Compile Include="Utils.fs" />
     </ItemGroup>
 
 </Project>
