@@ -9,6 +9,10 @@ EndProjectSection
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Logic", "ShopCrawler.Logic\ShopCrawler.Logic.fsproj", "{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Ebay", "ShopCrawler.Ebay\ShopCrawler.Ebay.fsproj", "{E7A83D67-6003-4046-9E77-D5C5281A23D4}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Common", "ShopCrawler.Common\ShopCrawler.Common.fsproj", "{57C5538A-CA6A-4926-80C9-EF00C035334D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,5 +27,13 @@ Global
 		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
