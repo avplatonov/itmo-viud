@@ -27,12 +27,7 @@ type Item =
       title: string
       category: Category
       image: Uri
-      url: Uri }
-    
-type ItemAdvanced =
-    { itemId: int64
-      title: string
-      category: Category
+      url: Uri
       location: string
       price: float32
       condition: int64 }

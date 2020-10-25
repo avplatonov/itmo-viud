@@ -39,5 +39,5 @@ let findItemsAdvanced client keywords category =
         let items = (r?findItemsAdvancedResponse.AsSingleItem?searchResult.AsSingleItem?item.AsArray())
         
         items
-        |> Array.map parseItemAdvanced
+        |> Array.map parseItem
         |> Ok 
