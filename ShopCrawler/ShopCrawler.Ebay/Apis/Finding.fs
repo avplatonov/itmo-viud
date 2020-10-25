@@ -20,7 +20,24 @@ let findByKeywords client keywords =
     ]
     |> Result.bind ^ fun r ->
         let items = (r?findItemsByKeywordsResponse.AsSingleItem?searchResult.AsSingleItem?item.AsArray())
-        
         items
         |> Array.map parseItem
+        |> Ok
+
+
+let findItemsAdvanced client keywords category =
+    Client.request client "services/search/FindingService/v1" [
+        "OPERATION-NAME", "findItemsAdvanced"
+        "SERVICE-VERSION", "1.0.0"
+        "REST-PAYLOAD", ""
+        "keywords", keywords |> String.concat " "
+        "categoryId", category
+        "descriptionSearch", "false"
+        "paginationInput.entriesPerPage", "10"
+    ]
+    |> Result.bind ^ fun r ->
+        let items = (r?findItemsAdvancedResponse.AsSingleItem?searchResult.AsSingleItem?item.AsArray())
+        
+        items
+        |> Array.map parseItemAdvanced
         |> Ok 

@@ -13,7 +13,8 @@ type Configuration = {
 }
 
 let run client =
-    let items = Finding.findByKeywords client ["blackberry"; "keyone"]
+//    let items = Finding.findByKeywords client ["blackberry"; "keyone"]
+    let items = Finding.findItemsAdvanced client ["blackberry"; "keyone"] "9355"
     match items with
     | Ok i -> printf "%A" i
     | Error e -> Console.WriteLine ("Error: {0}", e)

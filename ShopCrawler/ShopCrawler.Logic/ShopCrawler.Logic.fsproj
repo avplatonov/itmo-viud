@@ -12,4 +12,8 @@
       <PackageReference Include="FSharp.Data" Version="3.3.3" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Data" />
+    </ItemGroup>
+
 </Project>

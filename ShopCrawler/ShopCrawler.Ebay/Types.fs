@@ -28,3 +28,12 @@ type Item =
       category: Category
       image: Uri
       url: Uri }
+    
+type ItemAdvanced =
+    { itemId: int64
+      title: string
+      category: Category
+      location: string
+      price: float32
+      condition: int64 }
+    
