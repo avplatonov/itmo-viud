@@ -8,6 +8,7 @@
         <Compile Include="Types.fs" />
         <Compile Include="Providers.fs" />
         <Compile Include="Auth.fs" />
+        <Compile Include="Client.fs" />
     </ItemGroup>
 
     <ItemGroup>

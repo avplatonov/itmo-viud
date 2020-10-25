@@ -25,7 +25,7 @@ let main argv =
     let authRes = Auth.auth configuration.Ebay
     
     match authRes with
-    | Ok r -> Console.WriteLine r
+    | Ok { Token = t } -> Console.WriteLine t
     | Error e -> Console.WriteLine e
     
     0 // return an integer exit code

@@ -4,9 +4,14 @@
 type EbayConfig =
     { ClientId: string
       ClientSecret: string
-      BaseUrl: string
-      Scopes: string list }
+      AuthBaseUrl: string
+      ApiBaseUrl: string
+      Scopes: string[] }
     
 type ApiToken =
     { Token: string }
+    
+type Client =
+    { ApiToken: ApiToken
+      BaseUrl: string }
    

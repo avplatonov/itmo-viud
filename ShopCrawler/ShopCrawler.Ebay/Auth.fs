@@ -8,7 +8,7 @@ open FSharp.Data
 open FSharp.Data.HttpRequestHeaders
 
 let private authUrl config =
-    sprintf "%s/%s" config.BaseUrl "identity/v1/oauth2/token"
+    sprintf "%s/%s" config.AuthBaseUrl "identity/v1/oauth2/token"
 
 let private credentials config =
     let raw = sprintf "%s:%s" config.ClientId config.ClientSecret
