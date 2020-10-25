@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Console", "ShopCrawler.Console\ShopCrawler.Console.fsproj", "{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0500FA44-9DB2-40B7-A063-DB905E9A83CD}"
+ProjectSection(SolutionItems) = preProject
+	.gitignore = .gitignore
+EndProjectSection
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Logic", "ShopCrawler.Logic\ShopCrawler.Logic.fsproj", "{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
