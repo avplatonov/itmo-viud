@@ -8,7 +8,6 @@ class BaseConfig:
     START_SCREEN_NAMES: List[str]
     MONGO_DATABASE: str
     MONGO_URI: str
-    COLLECTION_NAME: str
 
 
 class ProductionConfig(BaseConfig):
