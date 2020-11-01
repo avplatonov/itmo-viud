@@ -31,6 +31,7 @@ type Item =
     
 type ItemAdvanced =
     { itemId: int64
+      timestamp: int64
       title: string
       category: Category
       location: string

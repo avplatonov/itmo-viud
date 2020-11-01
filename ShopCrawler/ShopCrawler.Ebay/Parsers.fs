@@ -23,6 +23,7 @@ let parseItem jsonValue =
     
 let parseItemAdvanced jsonValue =
     { itemId = jsonValue?itemId.AsSingleItem.AsString() |> int64
+      timestamp = DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()
       title = jsonValue?title.AsSingleItem.AsString()
       category = parseCategory jsonValue?primaryCategory.AsSingleItem
       location = jsonValue?location.AsSingleItem.AsString()
