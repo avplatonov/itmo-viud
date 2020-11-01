@@ -9,4 +9,9 @@
       <Compile Include="Utils.fs" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="mongocsharpdriver" Version="2.11.3" />
+      <PackageReference Include="MongoDB.Driver" Version="2.11.3" />
+    </ItemGroup>
+
 </Project>

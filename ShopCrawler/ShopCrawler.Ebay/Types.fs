@@ -27,7 +27,6 @@ type Item =
       timestamp: int64
       title: string
       category: Category
-      image: Uri
       url: Uri
       location: string
       price: float32

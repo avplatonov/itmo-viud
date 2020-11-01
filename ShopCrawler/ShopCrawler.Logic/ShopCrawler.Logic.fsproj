@@ -10,6 +10,8 @@
 
     <ItemGroup>
       <PackageReference Include="FSharp.Data" Version="3.3.3" />
+      <PackageReference Include="mongocsharpdriver" Version="2.11.3" />
+      <PackageReference Include="MongoDB.Driver" Version="2.11.3" />
     </ItemGroup>
 
 </Project>

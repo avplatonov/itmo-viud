@@ -11,11 +11,14 @@
         <Compile Include="Auth.fs" />
         <Compile Include="Client.fs" />
         <Compile Include="Apis\Finding.fs" />
+        <Compile Include="SaveToDB.fs" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="eBay.OAuth.Client" Version="1.0.1" />
       <PackageReference Include="FSharp.Data" Version="3.3.3" />
+      <PackageReference Include="mongocsharpdriver" Version="2.11.3" />
+      <PackageReference Include="MongoDB.Driver" Version="2.11.3" />
     </ItemGroup>
 
     <ItemGroup>

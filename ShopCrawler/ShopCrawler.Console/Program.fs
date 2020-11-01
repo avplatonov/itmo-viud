@@ -6,17 +6,20 @@ open Microsoft.Extensions.Configuration
 open ShopCrawler.Ebay
 open ShopCrawler.Ebay.Apis
 open ShopCrawler.Ebay.Types
+open ShopCrawler.Ebay.SaveToDB
 
 [<CLIMutable>]
 type Configuration = {
     Ebay: EbayConfig
 }
 
-let run client =
+let run (client: Client): Result<string,'a> =
 //    let items = Finding.findByKeywords client ["blackberry"; "keyone"]
-    let items = Finding.findItemsAdvanced client ["blackberry"; "keyone"] "9355"
+    let items = Finding.findItemsAdvanced client ["iphone"; "xs"] "9355"
     match items with
-    | Ok i -> printf "%A" i
+    | Ok _items ->
+        saveItems _items
+        printf "%A" _items
     | Error e -> Console.WriteLine ("Error: {0}", e)
     Ok "Done"
 

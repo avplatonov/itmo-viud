@@ -33,7 +33,7 @@ let findItemsAdvanced client keywords category =
         "keywords", keywords |> String.concat " "
         "categoryId", category
         "descriptionSearch", "false"
-        "paginationInput.entriesPerPage", "10"
+        "paginationInput.entriesPerPage", "100"
     ]
     |> Result.bind ^ fun r ->
         let items = (r?findItemsAdvancedResponse.AsSingleItem?searchResult.AsSingleItem?item.AsArray())
