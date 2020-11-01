@@ -13,6 +13,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Ebay", "ShopCra
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Common", "ShopCrawler.Common\ShopCrawler.Common.fsproj", "{57C5538A-CA6A-4926-80C9-EF00C035334D}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Service", "ShopCrawler.Service\ShopCrawler.Service.fsproj", "{1D185BFD-23DD-481F-AF21-31DE5230443F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,5 +37,9 @@ Global
 		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

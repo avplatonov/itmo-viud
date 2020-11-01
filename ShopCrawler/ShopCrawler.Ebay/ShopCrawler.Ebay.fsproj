@@ -11,7 +11,6 @@
         <Compile Include="Auth.fs" />
         <Compile Include="Client.fs" />
         <Compile Include="Apis\Finding.fs" />
-        <Compile Include="SaveToDB.fs" />
     </ItemGroup>
 
     <ItemGroup>
