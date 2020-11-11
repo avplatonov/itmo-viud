@@ -1,6 +1,9 @@
-﻿using System;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using AngleSharp;
+using StackOverflow.Models;
 using StackOverflow.Parsers;
 
 namespace StackOverflow
@@ -11,24 +14,25 @@ namespace StackOverflow
         {
             var config = Configuration.Default.WithDefaultLoader();
             var context = BrowsingContext.New(config);
-            
+
+            var questions = new List<Question>();
+
             foreach (var url in QuestionsQueue.QuestionsUrls)
             {
                 
                 var document = await context.OpenAsync(url);
                 
-                var questionParser = new QuestionParser();
-                var answers = questionParser.ParseAnswers(document);
-
-                // var question = questionParser.ParseQuestion(document);
-                //
-                // Console.WriteLine($"Question id = {question.QuestionId} and description = {question.Description} and votes = {question.Votes} and views = {question.Views}");
-                // Console.WriteLine("Tags: ");
-                // foreach (var questionTag in question.Tags)
-                // {
-                //     Console.WriteLine(questionTag);
-                // }
+                var questionParser = new StackOverflowParser();
+                
+                var question = questionParser.ParseQuestion(document);
+                question.Discussions = questionParser.ParseDiscussions(document);
+                
+                questions.Add(question);
             }
+
+            await using var fs = File.Create("questions.json");
+            
+            await JsonSerializer.SerializeAsync(fs, questions);
         }
     }
 }

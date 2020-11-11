@@ -1,0 +1,86 @@
+[
+  {
+    "Id": "2a7b96fa-e954-4f7f-8bfd-066b35ab419b",
+    "QuestionId": 23729477,
+    "Description": "converting dictionary string string to json string [duplicate]",
+    "Votes": 2,
+    "Views": 18056,
+    "Tags": [
+      "c#",
+      "json",
+      "linq"
+    ],
+    "Discussions": [
+      "\nTry this using extension methods.\n\npublic static class Extensions\n{\n    public static string FromDictionaryToJson(this Dictionary\u003Cstring, string\u003E dictionary)\n    {\n        var kvs = dictionary.Select(kvp =\u003E string.Format(\u0022\\\u0022{0}\\\u0022:\\\u0022{1}\\\u0022\u0022, kvp.Key, string.Concat(\u0022,\u0022, kvp.Value)));\n        return string.Concat(\u0022{\u0022, string.Join(\u0022,\u0022, kvs), \u0022}\u0022);\n    }\n\n    public static Dictionary\u003Cstring, string\u003E FromJsonToDictionary(this string json)\n    {\n        string[] keyValueArray = json.Replace(\u0022{\u0022, string.Empty).Replace(\u0022}\u0022, string.Empty).Replace(\u0022\\\u0022\u0022, string.Empty).Split(\u0027,\u0027);\n        return keyValueArray.ToDictionary(item =\u003E item.Split(\u0027:\u0027)[0], item =\u003E item.Split(\u0027:\u0027)[1]);\n    }\n}\n\n\nHere is how you would use them after.\n\n    class Program\n    {\n        static void Main(string[] args)\n        {\n            Dictionary\u003Cstring, string\u003E dictss = new Dictionary\u003Cstring, string\u003E();\n\n            dictss.Add(\u0022onekey\u0022, \u0022oneval\u0022);\n            dictss.Add(\u0022twokey\u0022, \u0022twoval\u0022);\n            dictss.Add(\u0022threekey\u0022, \u0022threeval\u0022);\n            dictss.Add(\u0022fourkey\u0022, \u0022fourval\u0022);\n            dictss.Add(\u0022fivekey\u0022, \u0022fiveval\u0022);\n\n            string jsonString = dictss.FromDictionaryToJson(); //call extension method\n\n            Console.WriteLine(jsonString);\n\n            Dictionary\u003Cstring, string\u003E dictss2 = jsonString.FromJsonToDictionary(); //call extension method\n\n            foreach(KeyValuePair\u003Cstring,string\u003E kv in dictss2)\n                Console.WriteLine(string.Format(\u0022key={0},value={1}\u0022, kv.Key, kv.Value));\n        }\n    }\n\n\nOr using plain functions\n\n        public string FromDictionaryToJson(Dictionary\u003Cstring, string\u003E dictionary)\n        {\n            var kvs = dictionary.Select(kvp =\u003E string.Format(\u0022\\\u0022{0}\\\u0022:\\\u0022{1}\\\u0022\u0022, kvp.Key, string.Join(\u0022,\u0022, kvp.Value)));\n            return string.Concat(\u0022{\u0022, string.Join(\u0022,\u0022, kvs), \u0022}\u0022);\n        }\n\n        public Dictionary\u003Cstring, string\u003E FromJsonToDictionary(string json)\n        {\n            string[] keyValueArray = json.Replace(\u0022{\u0022, string.Empty).Replace(\u0022}\u0022, string.Empty).Replace(\u0022\\\u0022\u0022, string.Empty).Split(\u0027,\u0027);\n            return keyValueArray.ToDictionary(item =\u003E item.Split(\u0027:\u0027)[0], item =\u003E item.Split(\u0027:\u0027)[1]);\n        }\n\n    ",
+      "\n                \n                Should it not be var kvs = dictionary.Select(kvp =\u003E string.Format(\u0022\\\u0022{0}\\\u0022:\\\u0022{1}\\\u0022\u0022, kvp.Key, kvp.Value)); ? Otherwise all values are preceded by a comma...\n                \n\u2013\u00A0rory\n                Jul 20 \u002716 at 8:27\n                        \n                            \n                        \n            ",
+      "\n                \n                In FromJsonToDictionary you can avoid doing split(\u0027:\u0027) twice by doing keyValueArray.Select(t =\u003E t.Split(\u0027:\u0027)).ToDictionary(item =\u003E item[0], item =\u003E item[1])\n                \n\u2013\u00A0Mariusz Jamro\n                Nov 10 \u002716 at 19:54\n                        \n                            \n                        \n            ",
+      "\n                \n                your should trim the start when you do string.Join(\u0022,\u0022 ...\n                \n\u2013\u00A0seddik\n                Feb 11 \u002717 at 10:52\n            "
+    ]
+  },
+  {
+    "Id": "c9afc113-10af-4302-a090-3c0cb5b26506",
+    "QuestionId": 64752622,
+    "Description": "How to deal with multiple string values and compare those string values with the user input? [duplicate]",
+    "Votes": -1,
+    "Views": 45,
+    "Tags": [
+      "c#",
+      "unity3d",
+      "input",
+      "word",
+      "card"
+    ],
+    "Discussions": [
+      "\nWhat about using Intersect() from System.Linq()?\nstring\n    generatedLetters = \u0022jz\u0022,\n    userInput = \u0022joker\u0022;\n\nif (generatedLetters.Intersect(userInput).Count() == userInput.Length)\n{\n    //yes! good!\n}\nelse\n{\n    //too bad..\n}\n\n\nIntersect() char count must match the generatedLetters char count to meet your conditions.\n    ",
+      "\nYou can use String.Contains().\nAssuming a group of letters to compare in a string:\nstring lettersToCompare;\n\nAnd that your user input is another string like:\nstring userInput;\n\nYou can do something like:\nstring lettersToCompare;\nstring userInput;\n\nbool isMatchingAllCharacters = true;\n//Compare each character of the string\nforeach (char c in lettersToCompare.ToCharArray())\n{\n    //if the userInput do not contain this character, you already now it won\u0027t match every character.\n    if (!userInput.Contains(c.ToString()))\n    {\n        isMatchingAllCharacters = false;\n        break;\n    }\n}\n\nif (isMatchingAllCharacters)\n{\n    Debug.Log(\u0022All matched\u0022);\n}\nelse\n{\n    Debug.Log(\u0022Something do not match\u0022);\n}\n\nYou can avoid the char-string conversions if you use LinQ:\nusing System.Linq;\n\nstring lettersToCompare;\nstring userInput;\n\nbool isMatchingAllCharacters = true;\n//Compare each character of the string\nforeach (char c in lettersToCompare)\n{\n    //if the userInput do not contain this character, you already now it won\u0027t match every character.\n    if (!userInput.Contains(c))\n    {\n        isMatchingAllCharacters = false;\n        break;\n    }\n}\n\nif (isMatchingAllCharacters)\n{\n    Debug.Log(\u0022All matched\u0022);\n}\nelse\n{\n    Debug.Log(\u0022Something do not match\u0022);\n}\n\n    ",
+      "\n                \n                Intersection() char count must match the generatedLetters char count to meet your conditions. this is correct but in your code it is wrong ;) currently you are checking if the entire userInput.Length is a match ;) it should rather be if(generatedLetters.Intersect(userInput).Count() == generatedLetters.Length)\n                \n\u2013\u00A0derHugo\n                yesterday\n                        \n                            \n                        \n            ",
+      "\n                \n                No errors when using your code. However, it would still accept an incorrect word. Here\u0027s the updated code. pastebin.com/NWDrg3dc\n                \n\u2013\u00A0greatvortex\n                yesterday\n                        \n                            \n                        \n            ",
+      "\n                \n                derHugo\u0027s correction still doesn\u0027t work.\n                \n\u2013\u00A0greatvortex\n                yesterday\n            ",
+      "\n                \n                @greatvortex oh sorry, I forgot the part where you were asking for word checking. I\u0027ll edit the answer with your code.\n                \n\u2013\u00A0ewhoambra\n                yesterday\n            ",
+      "\n                \n                @greatvortex this also works btw see dotnetfiddle.net/nEDshp\n                \n\u2013\u00A0derHugo\n                yesterday\n            ",
+      "\n                \n                Assets\\Scripts\\LetterRandomiser.cs(52,46): error CS1503: Argument 1: cannot convert from \u0027char\u0027 to \u0027string\u0027\n                \n\u2013\u00A0greatvortex\n                yesterday\n            ",
+      "\n                \n                @greatvortex fixed, the previous code work without changes using LinQ\n                \n\u2013\u00A0Lotan\n                yesterday\n                        \n                            \n                        \n            ",
+      "\n                \n                It still doesn\u0027t work.\n                \n\u2013\u00A0greatvortex\n                yesterday\n            ",
+      "\n                \n                @greatvortex I\u0027ve tested myself, so it seems to work. Tell me what errors you have\n                \n\u2013\u00A0Lotan\n                yesterday\n                        \n                            \n                        \n            ",
+      "\n                \n                There are no errors but when I enter a word that contains only one of the two randomly generated letters, the program would still accept it. Code here... pastebin.com/UZ5n1dzV\n                \n\u2013\u00A0greatvortex\n                yesterday\n                        \n                            \n                        \n            "
+    ]
+  },
+  {
+    "Id": "1a0d20a9-59c4-4937-a0a5-0030ccf683fc",
+    "QuestionId": 64751721,
+    "Description": "Connecting to MSSQL always takes 2 seconds",
+    "Votes": 3,
+    "Views": 68,
+    "Tags": [
+      "c#",
+      "sql-server"
+    ],
+    "Discussions": []
+  },
+  {
+    "Id": "26be288d-4e9a-4a40-bffb-f9ae317f8946",
+    "QuestionId": 64751009,
+    "Description": "ASP NET Core (MVC) problem with passing parameters from the view to the controller",
+    "Votes": -1,
+    "Views": 66,
+    "Tags": [
+      "c#",
+      "asp.net",
+      "asp.net-mvc",
+      "asp.net-core"
+    ],
+    "Discussions": [
+      "\nBecause the parameter names you accept are answer1, answer2, you should have a matching name in your view to make it possible to bind successfully.\nYou can modify your front-end code as follows(DropDownListForto DropDownList):\n@model CommonEntity\n@using (Html.BeginForm(\u0022Find\u0022, \u0022Hello\u0022))\n{\n@Html.DropDownList(\u0022answer1\u0022, new SelectList(ViewBag.Location, \u0022Title\u0022, \u0022Title\u0022))\n@Html.DropDownList(\u0022answer2\u0022, new SelectList(ViewBag.JobTitle, \u0022Title\u0022, \u0022Title\u0022))\n\u003Cbutton type=\u0022submit\u0022\u003EFind\u003C/button\u003E\n}\n\nYour Controller:\npublic class HelloController : Controller\n{\n    [HttpGet]\n    public IActionResult Index()\n    {\n\n        var locations = new List\u003CLocation\u003E()\n    {\n           new Location()\n           {\n                Id = 0,\n            Title = \u0022Russia\u0022\n\n        },\n            new Location()\n           {\n                Id = 1,\n            Title = \u0022Canada\u0022\n           }\n    };\n\n        ViewBag.Location = locations;\n\n        var jobs = new List\u003CJobTitle\u003E()\n    {\n        new JobTitle()\n        {\n            Id = 0,\n            Title = \u0022Manager\u0022\n        } ,\n        new JobTitle()\n        {\n            Id = 1,\n            Title = \u0022Programmer\u0022\n        }\n    };\n\n        ViewBag.JobTitle = jobs;\n\n\n        return View();\n    }\n\n    [HttpPost]\n    public string Find(string answer1,string answer2)\n    {\n        return \u0022Fine\u0022;\n    }\n}\n\nClass:\n public class CommonEntity\n{\n    public Location Location { get; set; }\n    public JobTitle JobTitle { get; set; }\n\n}\npublic class JobTitle\n{\n    public long Id { get; set; }\n    public string Title { get; set; }\n}\npublic class Location\n{\n    public long Id { get; set; }\n    public string Title { get; set; }\n}\n\nResult:\n\n\n    ",
+      "\nyou are doing things wrongly,\n\nyou should correct your cshtml so that when submitting the form, it will target your Find Action,\n\n@using (Html.BeginForm(\u0022Find\u0022, \u0022Hello\u0022))\n\n\nIn your Find Action you should provide in input args resolvable by the DefaultModelBinder, since you don\u0027t have a ViewModel to intercept the response, I would suggest that you recieve a FormCollection and you can access your values from there.\n\n[HttpPost]\n    public string Find(FormCollection form)\n    {\n        return \u0022Fine\u0022;\n    }\n\n    ",
+      "\nTry updating parameters as below. Please refer Model Binding in ASP.NET Core for more details.\n[HttpPost]\npublic string Find(Location Location, JobTitle JobTitle)\n{\n    return \u0022Fine\u0022;\n}\n\nOr you can try with parameter of CommonEntity like below.\n[HttpPost]\npublic string Find(CommonEntity commonEntity)\n{\n    var locationTitle = commonEntity.Location.Title;\n    var jobTitle = commonEntity.JobTitle.Title;\n    \n    return \u0022Fine\u0022;\n}\n\n    ",
+      "\n                \n                I have updated my answer.\n                \n\u2013\u00A0Yinqiu\n                yesterday\n            ",
+      "\n                \n                i got error after click the button  Page unavailable The localhost site can\u0027t process this request yet\n                \n\u2013\u00A0Mooonah\n                yesterday\n            ",
+      "\n                \n                did you debug the code to check if it hits the Find action or not? May be you got the error in your callback\n                \n\u2013\u00A0Ismail Diari\n                yesterday\n            ",
+      "\n                \n                yea, it hits, POST request error code - 500\n                \n\u2013\u00A0Mooonah\n                yesterday\n            ",
+      "\n                \n                your probem is after posting so, I think you should noy returna string from your Post, you should return a View.\n                \n\u2013\u00A0Ismail Diari\n                yesterday\n            ",
+      "\n                \n                if i do first your solution i got a error like :  System.InvalidOperationException: \u0022Action \u0027Controllers.HelloController.Find \u0027 has more than one parameter that was specified or inferred as bound from request body. Only one parameter per action may be bound from body. Inspect the following parameters, and use \u0027FromQueryAttribute\u0027 to specify bound from query, \u0027FromRouteAttribute\u0027 to specify bound from route, and \u0027FromBodyAttribute\u0027 for parameters to be bound from body: Location l JobTitle g\u0022\n                \n\u2013\u00A0Mooonah\n                yesterday\n            ",
+      "\n                \n                Then, i try add this to parameters this:    public string Find([FromQuery] Location l, [FromQuery] JobTitle g)         {                         return \u0022Fine\u0022;          } then error was gone, but that still null\n                \n\u2013\u00A0Mooonah\n                yesterday\n            ",
+      "\n                \n                [FromQuery] won\u0027t work because it will try to find values from query parameters (i.e. part after ? from url localhost:\\\\URL?Location.Title=Russia\u0026JobTitle.Title=Programmer). But in your case form posts values so it could be [FromBody] or don\u0027t write any annotation so framework will try its best to get values from URL or Body or Query.\n                \n\u2013\u00A0Karan\n                yesterday\n            "
+    ]
+  }
+]

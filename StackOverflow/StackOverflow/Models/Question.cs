@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace StackOverflow.Models
@@ -11,5 +11,6 @@ namespace StackOverflow.Models
         public int Votes { get; set; }
         public int Views { get; set; }
         public List<string> Tags { get; set; }
+        public List<string> Discussions { get; set; }
     }
 }

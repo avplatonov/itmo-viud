@@ -7,6 +7,6 @@ namespace StackOverflow.Abstracts
     public interface IParser
     {
         Question ParseQuestion(IDocument document);
-        List<Answer> ParseAnswers(IDocument document);
+        List<string> ParseDiscussions(IDocument document);
     }
 }

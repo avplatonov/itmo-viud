@@ -1,4 +1,4 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using AngleSharp.Dom;
@@ -7,7 +7,7 @@ using StackOverflow.Models;
 
 namespace StackOverflow.Parsers
 {
-    public class QuestionParser : IParser
+    public class StackOverflowParser : IParser
     {
         public Question ParseQuestion(IDocument document)
         {
@@ -27,6 +27,7 @@ namespace StackOverflow.Parsers
             
             return new Question
             {
+                Id = Guid.NewGuid(),
                 QuestionId = url,
                 Description = description,
                 Votes = votes,
@@ -35,14 +36,22 @@ namespace StackOverflow.Parsers
             };
         }
 
-        public List<Answer> ParseAnswers(IDocument document)
+        public List<string> ParseDiscussions(IDocument document)
         {
-            foreach (var element in document.QuerySelectorAll(".s-prose.js-post-body"))
-            {
-                // Console.WriteLine(element.Text());
-            }
+            var discussions = document
+                .QuerySelectorAll("#answers")[0]
+                .QuerySelectorAll(".s-prose.js-post-body")
+                .Select(e => e.Text())
+                .ToList();
 
-            return null;
+            discussions.AddRange(document
+                .QuerySelectorAll("#answers")[0]
+                .QuerySelectorAll(".comment-body.js-comment-edit-hide")
+                .Select(e => e.Text())
+                .ToList()
+            );
+
+            return discussions;
         }
     }
 }
