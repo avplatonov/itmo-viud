@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -14,19 +15,15 @@ namespace StackOverflow
         {
             var config = Configuration.Default.WithDefaultLoader();
             var context = BrowsingContext.New(config);
+            var htmlParser = new StackOverflowParser();
+
+            var questionsStream = new QuestionsStream(context, htmlParser);
 
             var questions = new List<Question>();
 
-            foreach (var url in QuestionsQueue.QuestionsUrls)
+            await foreach (var question in questionsStream.GetQuestions("c%23"))
             {
-                
-                var document = await context.OpenAsync(url);
-                
-                var questionParser = new StackOverflowParser();
-                
-                var question = questionParser.ParseQuestion(document);
-                question.Discussions = questionParser.ParseDiscussions(document);
-                
+                Console.WriteLine("WE GET A NEW QUESTION");
                 questions.Add(question);
             }
 

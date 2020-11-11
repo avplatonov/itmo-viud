@@ -7,7 +7,7 @@ using StackOverflow.Models;
 
 namespace StackOverflow.Parsers
 {
-    public class StackOverflowParser : IParser
+    public class StackOverflowParser : IHtmlParser
     {
         public Question ParseQuestion(IDocument document)
         {
