@@ -5,12 +5,11 @@ import m3u8
 import streamlink
 import subprocess
 import ssl
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
-DATA_PATH = "temp"
+DATA_PATH = "./data"
 
 
 def writeToCsv(timestamp, pic):
@@ -62,6 +61,7 @@ def dl_stream(url, filename, chunks):
     """
     Download each chunks
     """
+    filenames = []
     pre_time_stamp = 0
     for i in range(chunks + 1):
         stream_segment = get_stream(url)
@@ -72,13 +72,15 @@ def dl_stream(url, filename, chunks):
         else:
             print(cur_time_stamp)
             videoName = filename + '_' + str(cur_time_stamp) + '.ts'
-            file = open(DATA_PATH + "/streams" + videoName, 'ab+')
+            name =  "/streams" + videoName
+            filenames.append(name)
+            file = open(DATA_PATH + name, 'ab+')
             with urllib.request.urlopen(stream_segment.uri) as response:
                 html = response.read()
                 file.write(html)
             pre_time_stamp = cur_time_stamp
             cutVideoIntoPictures(videoName, cur_time_stamp)
-
+    return filenames
 
 # do this before running
 # sudo apt install ffmpeg
@@ -86,5 +88,5 @@ def convertStreamToMP4(infile, outfile):
     subprocess.run(['ffmpeg', '-i', infile, outfile])
 
 
-url = "https://www.youtube.com/watch?v=eJ7ZkQ5TC08"
-dl_stream(url, "/live", 5)
+## url = "https://www.youtube.com/watch?v=eJ7ZkQ5TC08"
+## dl_stream(url, "/live", 5)

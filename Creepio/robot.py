@@ -37,7 +37,7 @@ def getYoutubeSrcAndGeomap(url):
     except Exception:
         return None
     else:
-        return (youtubeSrc,geomapSrc)
+        return {"video_link": youtubeSrc, "geolaction": geomapSrc}
 
 def getAllCameras(url):
     res = []
@@ -53,4 +53,4 @@ url = "https://www.geocam.ru/in/st-petersburg"
 url = "https://www.geocam.ru/online/admiral-emb/"
 #print(getYoutubeSrcAndGeomap(url))
 url = "https://www.geocam.ru/in/st-petersburg/"
-print(getAllCameras(url))
+## print(getAllCameras(url))
