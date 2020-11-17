@@ -5,7 +5,8 @@ from mongoengine import Document, IntField, FloatField, ImageField, DateTimeFiel
 
 class Photo(Document):
     community_id: int = IntField(required=True)
-    post_id: int = IntField(required=True, unique_with='community_id')
+    post_id: int = IntField(required=True)
+    photo_id: int = IntField(required=True, unique_with=['post_id', 'community_id'])
 
     likes_count: int = IntField(required=True)
     views_count: int = IntField(required=True)

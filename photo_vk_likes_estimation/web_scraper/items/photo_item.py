@@ -10,6 +10,7 @@ from typing import Optional
 class PhotoItem:
     community_id: int
     post_id: int
+    photo_id: int
 
     likes_count: int
     views_count: int

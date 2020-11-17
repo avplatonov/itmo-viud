@@ -42,7 +42,7 @@ class VkDatingPhotosSpider(scrapy.Spider):
         like_counts = [p["likes"]["count"] for p in posts]
         views_counts = [p["views"]["count"] for p in posts]
         for post in posts:
-            yield _assemble_photo_item(post, _get_list_mean(like_counts), _get_list_mean(views_counts))
+            yield from _assemble_photo_items(post, _get_list_mean(like_counts), _get_list_mean(views_counts))
 
         offset = query.get("offset", 0)
         if offset < data["count"]:
@@ -77,20 +77,23 @@ def _filter_posts_batch(posts) -> List[dict]:
     return passed
 
 
-def _assemble_photo_item(post: dict, avg_batch_likes_count: float, avg_batch_views_count: float) -> PhotoItem:
-    first_photo_sizes = next(att for att in post["attachments"] if att["type"] == 'photo')["photo"]["sizes"]
-    size_types = set(sz["type"] for sz in first_photo_sizes)
-    selected_type = "y" if "y" in size_types else "x"
-    photo_url = next(sz["url"] for sz in first_photo_sizes if sz["type"] == selected_type)
+def _assemble_photo_items(post: dict, avg_batch_likes_count: float, avg_batch_views_count: float) -> PhotoItem:
+    for att in post["attachments"]:
+        if att["type"] != 'photo':
+            continue
 
-    photo_item = PhotoItem(
-        community_id=post["owner_id"],
-        post_id=post["id"],
-        likes_count=post["likes"]["count"],
-        views_count=post["views"]["count"],
-        avg_batch_likes_count=avg_batch_likes_count,
-        avg_batch_views_count=avg_batch_views_count,
-        photo_url=photo_url
-    )
+        first_photo_sizes = att["photo"]["sizes"]
+        size_types = set(sz["type"] for sz in first_photo_sizes)
+        selected_type = "y" if "y" in size_types else "x"
+        photo_url = next(sz["url"] for sz in first_photo_sizes if sz["type"] == selected_type)
 
-    return photo_item
+        yield PhotoItem(
+            community_id=post["owner_id"],
+            post_id=post["id"],
+            photo_id=att["photo"]["id"],
+            likes_count=post["likes"]["count"],
+            views_count=post["views"]["count"],
+            avg_batch_likes_count=avg_batch_likes_count,
+            avg_batch_views_count=avg_batch_views_count,
+            photo_url=photo_url
+        )

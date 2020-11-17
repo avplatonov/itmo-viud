@@ -70,6 +70,6 @@ class MongodbMiddleware:
 
     def _get_or_create_photo_document(self, item: PhotoItem, item_dict: dict) -> Photo:
         try:
-            return Photo.objects(community_id=item.community_id, post_id=item.post_id).get()
+            return Photo.objects(community_id=item.community_id, post_id=item.post_id, photo_id=item.photo_id).get()
         except DoesNotExist:
             return Photo(**item_dict)
