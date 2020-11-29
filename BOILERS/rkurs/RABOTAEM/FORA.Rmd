@@ -1,0 +1,113 @@
+---
+title: "FORA"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+fora <- read_excel("FORA.xlsx")
+fora$ALastGameAgo = as.numeric(fora$ALastGameAgo)
+fora$HLastGameAgo = as.numeric(fora$HLastGameAgo)
+```
+
+
+#ДЕЛИМ НА ТЕСТ
+```{r}
+l = 100
+
+train = fora[1:(nrow(fora)-l),1:length(fora)]
+test = fora[(nrow(fora)-l+1):nrow(fora),1:length(fora)]
+rm(l)
+```
+
+
+```{r}
+train <- as.data.frame(unclass(train)) 
+test = as.data.frame(unclass(test))
+
+```
+
+
+```{r}
+options(max.print=1000000)
+reg = lm(Fora~., data = train,na.action=na.roughfix)
+summary(reg)
+```
+
+
+Предикт
+```{r}
+pred.Regression.Train = predict(reg, newdata = train)
+pred.Regression.Test = predict(reg, newdata = test)
+```
+ФИКСИРУЕМ ПРИБЫЛЬ
+
+```{r}
+library(dplyr)
+profit = case_when(
+  (pred.Regression.Test > test$ForaClose) & (test$Fora > test$ForaClose) ~ 100*0.87,
+  (pred.Regression.Test < test$ForaClose) & (test$Fora < test$ForaClose)  ~ 100*0.87,
+  T ~ -100
+)
+sum(profit)
+```
+
+#GBM
+
+```{r}
+
+
+library(gbm)
+
+model.boost2=gbm(Fora~., data=train, distribution="gaussian", n.trees=1000, 
+                 interaction.depth=2, verbose=F)
+
+
+
+predTrainProb.boost2 = predict(model.boost2, train, n.trees = 1000, type = "response")
+predTestProb.boost2 = predict(model.boost2, test, n.trees = 1000, type = "response")
+```
+
+
+Больше деревьев
+```{r}
+
+
+library(gbm)
+
+model.boost3=gbm(Fora~., data=train, distribution="gaussian", n.trees=2000, 
+                 interaction.depth=4, verbose=F)
+
+
+
+predTrainProb.boost3 = predict(model.boost3, train, n.trees = 1000, type = "response")
+predTestProb.boost3 = predict(model.boost3, test, n.trees = 1000, type = "response")
+```
+
+
+
+
+#Stacking
+
+```{r}
+dataStack =  data.frame(reg = pred.Regression.Train, 
+                        gbm2 = predTrainProb.boost2, 
+                        gbm3 = predTrainProb.boost3,
+                        Fora = train$Fora)
+```
+
+
+```{r}
+library(caret)
+model.stack = caret::train(Fora~., data=(dataStack %>% na.omit() ), method = "ctree")
+
+predictionsTest = data.frame(reg = pred.Regression.Test, gbm2 = predTestProb.boost2, gbm3 = predTestProb.boost3, Fora = test$Fora)
+
+
+predTest.stack = predict(model.stack, newdata = predictionsTest)
+predTrain.stack = predict(model.stack, newdata = dataStack)
+
+```
+

@@ -1,0 +1,719 @@
+---
+output: html_document 
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+acr <- read_excel("acronym.xlsx")
+october <- read_excel("october.xlsx")
+november <- read_excel("november.xlsx")
+december <- read_excel("december.xlsx")
+january <- read_excel("january.xlsx")
+february <- read_excel("february.xlsx")
+march <- read_excel("march.xlsx")
+last <- read_excel("last.xlsx")
+```
+
+```{r}
+october= october %>% inner_join(acr)
+october$zer=0
+october$code = paste(october$code,october$zer,october$acr,sep="")
+october = october %>% select(-zer)
+```
+
+
+```{r}
+november= november %>% inner_join(acr)
+november$zer=0
+november$code = paste(november$code,november$zer,november$acr,sep="")
+november = november %>% select(-zer)
+```
+
+```{r}
+december= december %>% inner_join(acr)
+december$zer=0
+december$code = paste(december$code,december$zer,december$acr,sep="")
+december = december %>% select(-zer)
+```
+
+```{r}
+january= january %>% inner_join(acr)
+january$zer=0
+january$code = paste(january$code,january$zer,january$acr,sep="")
+january = january %>% select(-zer)
+```
+
+```{r}
+february= february %>% inner_join(acr)
+february$zer=0
+february$code = paste(february$code,february$zer,february$acr,sep="")
+february = february %>% select(-zer)
+```
+
+```{r}
+march= march %>% inner_join(acr)
+march$zer=0
+march$code = paste(march$code,march$zer,march$acr,sep="")
+march = march %>% select(-zer)
+```
+
+```{r}
+FinalCodes = rbind(october,november,december,january,february,march)
+
+write.xlsx(FinalCodes, "FinalCodes.xlsx")
+```
+
+
+
+
+
+
+```{r}
+library(stringr)
+stats <- read_excel("StatsR.xlsx")
+
+
+stats = stats %>%
+  select(-A19, -"1234", -"35", -H19, -"123456", -"71") 
+
+
+
+class(stats$AnoOTP)
+stats$AnoOTP = as.integer(stats$AnoOTP)
+class(stats$AnoOTP)
+
+stats = stats %>%
+  dplyr::arrange(AnoOTP)
+
+stats$AnoOTP = ifelse(stats$AnoOTP > 50, stats$AnoOTP, NA)
+
+
+
+
+
+fixed = stats
+
+
+fixed$Home = ifelse(str_detect(fixed$HSecondQ, "[0-9]"), fixed$Home, NA)
+
+
+fixed[]<-t(apply(fixed,1,function(x){
+                           c(x[!is.na(x)],x[is.na(x)])}))
+
+
+fixed$Pace = as.integer(fixed$Pace)
+fixed$HnoOTP = as.integer(fixed$HnoOTP)
+
+fixed$HnoOTP = ifelse(fixed$HnoOTP > 50, fixed$HnoOTP, NA)
+
+
+fixed$Pace = ifelse(fixed$Pace > 50, fixed$Pace, NA)
+
+fixed[]<-t(apply(fixed,1,function(x){
+                           c(x[!is.na(x)],x[is.na(x)])}))
+
+
+final = fixed %>%
+  select(-contains("1"), -contains("9"), -HMP)
+
+
+final = na.omit(final)
+write.xlsx(final, "Final.xlsx")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ot <- read_excel("StatsR.xlsx")
+ot$ID <- seq.int(nrow(ot))
+ot <- ot[, c(102, 1:101)]
+
+ot = ot %>%
+  select(-A19, -"1234", -"35", -H19, -"123456", -"71") 
+
+class(ot$AnoOTP)
+ot$AnoOTP = as.integer(ot$AnoOTP)
+class(ot$AnoOTP)
+
+ot = ot %>%
+  dplyr::arrange(AnoOTP)
+
+ot$AOTP = 0
+ot$AOTP = ifelse(ot$AnoOTP > 50, ot$AOTP, ot$AOTP + ot$AnoOTP)
+ot$AnoOTP = ifelse(ot$AnoOTP > 50, ot$AnoOTP, NA)
+
+
+ot$HomeName = ot$Home
+ot$HomeName = as.integer(ot$HomeName)
+ot$HomeName = ifelse(is.na(ot$HomeName) | ot$HomeName > 50, 0, ot$HomeName)
+
+ot$AOTP = ot$AOTP + ot$HomeName
+ot$Home = ifelse(str_detect(ot$HSecondQ, "[0-9]"), ot$Home, NA)
+
+
+ot[]<-t(apply(ot,1,function(x){
+                           c(x[!is.na(x)],x[is.na(x)])}))
+
+
+ot$Pace = as.integer(ot$Pace)
+ot$HnoOTP = as.integer(ot$HnoOTP)
+
+ot$HOTP = 0
+ot$HOTP = ifelse(ot$HnoOTP > 50, ot$HOTP, ot$HOTP + ot$HnoOTP)
+ot$HnoOTP = ifelse(ot$HnoOTP > 50, ot$HnoOTP, NA)
+
+ot$HOTP = ifelse(ot$Pace > 50, ot$HOTP, ot$HOTP + ot$Pace)
+ot$Pace = ifelse(ot$Pace > 50, ot$Pace, NA)
+
+ot[]<-t(apply(ot,1,function(x){
+                           c(x[!is.na(x)],x[is.na(x)])}))
+
+
+names(ot)[names(ot) == '96'] <- 'AOT'
+names(ot)[names(ot) == '98'] <- 'HOT'
+
+finalOT = ot %>%
+  select(-contains("1"), -contains("9"), -HMP, -HomeName, -AOTP, -HOTP)
+
+
+finalOT = na.omit(finalOT) 
+
+finalOT$ID = as.integer(finalOT$ID) 
+
+write.xlsx(finalOT, "FinalOT.xlsx")
+```
+
+
+
+
+
+
+
+```{r}
+bets <- read_excel("NBA/Bets.xlsx")
+
+
+toDelete <- seq(2, nrow(bets), 2)
+
+clean = bets[-toDelete,]
+
+write.xlsx(clean, "cleanBets.xlsx")
+```
+
+
+
+```{r}
+bets<- read_excel("NBA/cleanBets.xlsx")
+
+bets$VODD = ifelse(bets$VODD >= 0, (bets$VODD+100)/100, (-bets$VODD+100)/-bets$VODD)
+bets$HODD = ifelse(bets$HODD >= 0, (bets$HODD+100)/100, (-bets$HODD+100)/-bets$HODD)
+
+
+
+
+
+bets$Open = as.numeric(bets$Open)
+bets$Openn= as.numeric(bets$Openn)
+bets$Close = as.numeric(bets$Close)
+bets$Closee = as.numeric(bets$Closee)
+
+
+bets$TotalOpen = ifelse(bets$Open >= 100, bets$Open, bets$Openn)
+bets$TotalClose = ifelse(bets$Close >= 100, bets$Close, bets$Closee)
+
+bets$ForaOpen = ifelse(bets$Open < 100, bets$Open, bets$Openn)
+bets$ForaClose = ifelse(bets$Close < 100, bets$Close, bets$Closee)
+
+bets$ForaOpen = ifelse(bets$HODD >= bets$VODD, abs(bets$ForaOpen), -abs(bets$ForaOpen))
+bets$ForaClose = ifelse(bets$HODD >= bets$VODD, abs(bets$ForaClose), -abs(bets$ForaClose))
+
+bets = bets %>%
+  select(-Open, -Close, -Openn, -Closee)
+
+write.xlsx(bets, "cleanBets.xlsx")
+```
+
+
+```{r}
+bets <- read_csv("Everything.csv")
+```
+
+```{r}
+legend <- read_csv("legends.csv")
+
+```
+
+```{r}
+
+betsClean = bets
+
+betsClean = select(betsClean, -"X1", -"year", -"month", -"day", -"start", -"visitor", -"home", -"code", -"acr", -"newID")
+betsClean = select(betsClean, -"Date", -"Away", -"Home.y")
+betsClean = select(betsClean, -"APTS", -"HPTS")
+betsClean = select(betsClean, -"APTS", -"attend")
+
+names(betsClean)[names(betsClean) == 'Visitor'] <- 'Away'
+names(betsClean)[names(betsClean) == 'Home.x'] <- 'Home'
+names(betsClean)[names(betsClean) == 'VODD'] <- 'AODD'
+names(betsClean)[names(betsClean) == 'pts_visitor'] <- 'APTS'
+names(betsClean)[names(betsClean) == 'pts_home'] <- 'HPTS'
+```
+
+
+```{r}
+
+betsClean$MAP = 0
+
+for (i in c(2:971)){
+  away = betsClean[i,5]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (betsClean[j,5] == away){
+      MAP = MAP + betsClean[j,1]
+      a = a + 1
+      j = j + 1
+    } else if
+    (betsClean[j,7] == away){
+      MAP = MAP + betsClean[j,2]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+}
+betsClean[i,89] = MAP/a  
+  }
+
+
+betsClean$MAP = 0
+
+for (i in c(2:971)){
+  away = betsClean[i,5]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (betsClean[j,5] == away){
+      MAP = MAP + betsClean[j,1]
+      a = a + 1
+      j = j + 1
+    } else if
+    (betsClean[j,7] == away){
+      MAP = MAP + betsClean[j,2]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+}
+betsClean[i,89] = MAP/a  
+  }
+
+
+
+```
+
+
+```{r}
+final = read.csv("Finale.csv")
+
+finalClean = final
+
+finalClean = select(finalClean, -"X1", -"start", -"visitor", -"home", -"code", -"acr", -"newID")
+finalClean = select(finalClean, -"Date", -"Away", -"Home.y")
+finalClean = select(finalClean, -"APTS", -"HPTS")
+finalClean = select(finalClean, -"attend")
+finalClean = select(finalClean, -"ID")
+
+
+
+names(finalClean)[names(finalClean) == 'Visitor'] <- 'Away'
+names(finalClean)[names(finalClean) == 'Home.x'] <- 'Home'
+names(finalClean)[names(finalClean) == 'VODD'] <- 'AODD'
+names(finalClean)[names(finalClean) == 'pts_visitor'] <- 'APTS'
+names(finalClean)[names(finalClean) == 'pts_home'] <- 'HPTS'
+names(finalClean)[names(finalClean) == 'X'] <- 'ID'
+
+
+
+library(tidyr)
+
+check = finalClean%>% 
+  separate(VF_time, c('VF_min', 'VF_sec'), sep=":")
+check$VF_min = as.integer(check$VF_min) 
+check$VF_sec = as.integer(check$VF_sec) 
+check$AFStar = 60 * check$VF_min + check$VF_sec
+check = select(check, -"VF_min", -"VF_sec")
+
+
+check = check%>% 
+  separate(VS_time, c('VS_min', 'VS_sec'), sep=":")
+check$VS_min = as.integer(check$VS_min) 
+check$VS_sec = as.integer(check$VS_sec) 
+check$ASStar = 60 * check$VS_min + check$VS_sec
+check = select(check, -"VS_min", -"VS_sec")
+
+
+check = check%>% 
+  separate(HF_time, c('HF_min', 'HF_sec'), sep=":")
+check$HF_min = as.integer(check$HF_min) 
+check$HF_sec = as.integer(check$HF_sec) 
+check$HFStar = 60 * check$HF_min + check$HF_sec
+check = select(check, -"HF_min", -"HF_sec")
+
+
+check = check%>% 
+  separate(HS_time, c('HS_min', 'HS_sec'), sep=":")
+check$HS_min = as.integer(check$HS_min) 
+check$HS_sec = as.integer(check$HS_sec) 
+check$HSStar = 60 * check$HS_min + check$HS_sec
+check = select(check, -"HS_min", -"HS_sec")
+
+
+check$AFStar = ifelse(is.na(check$AFStar), 0, check$AFStar)
+check$ASStar = ifelse(is.na(check$ASStar), 0, check$ASStar)
+check$HFStar = ifelse(is.na(check$HFStar), 0, check$HFStar)
+check$HSStar = ifelse(is.na(check$HSStar), 0, check$HSStar)
+
+
+library(lubridate)
+
+check$GDate = ymd(paste(check$year, check$month, check$day))
+check = select(check, -"year", -"month", -"day")
+
+
+
+check$MAP = 0
+
+for (k in c(13:42)){
+  
+
+for (i in c(2:971)){
+  away = check[i,4]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (check[j,4] == away){
+      MAP = MAP + check[j,k]
+      a = a + 1
+      j = j + 1
+    } else if
+    (check[j,6] == away){
+      MAP = MAP + check[j,k+30]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+  }
+check[i,86+k] = MAP/a  
+}  
+print("A")
+}
+
+
+
+
+for (k in c(43:72)){
+  
+
+for (i in c(2:971)){
+  away = check[i,6]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (check[j,4] == away){
+      MAP = MAP + check[j,k-30]
+      a = a + 1
+      j = j + 1
+    } else if
+    (check[j,6] == away){
+      MAP = MAP + check[j,k]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+  }
+check[i,86+k] = MAP/a  
+}
+print("B")
+}
+
+check$MAPace = 0
+for (i in c(2:971)){
+  away = check[i,4]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (check[j,4] == away){
+      MAP = MAP + check[j,83]
+      a = a + 1
+      j = j + 1
+    } else if
+    (check[j,6] == away){
+      MAP = MAP + check[j,83]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+  }
+check$MAPace[i] = MAP/a  
+print("C")
+}  
+
+
+check$MHPace = 0
+for (i in c(2:971)){
+  away = check[i,6]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (check[j,4] == away){
+      MAP = MAP + check[j,83]
+      a = a + 1
+      j = j + 1
+    } else if
+    (check[j,6] == away){
+      MAP = MAP + check[j,83]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+  }
+check$MHPace[i] = MAP/a  
+print("D")
+}  
+
+
+
+check$MHFTFG = 0
+for (i in c(2:971)){
+  away = check[i,6]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (check[j,4] == away){
+      MAP = MAP + check[j,84]
+      a = a + 1
+      j = j + 1
+    } else if
+    (check[j,6] == away){
+      MAP = MAP + check[j,85]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+  }
+check$MHFTFG[i] = MAP/a  
+print("E")
+} 
+
+check$MAFTFG = 0
+
+for (i in c(2:971)){
+  away = check[i,4]
+  a = 0
+  MAP = 0
+  j = 1
+  while (j < i){
+    if (check[j,4] == away){
+      MAP = MAP + check[j,84]
+      a = a + 1
+      j = j + 1
+    } else if
+    (check[j,6] == away){
+      MAP = MAP + check[j,85]
+      a = a + 1
+      j = j + 1
+    } else {j = j + 1}
+  }
+check$MAFTFG[i] = MAP/a  
+print("F")
+} 
+
+
+write.xlsx(check, "check.xlsx")
+
+
+```
+
+
+```{r}
+second<- read_excel("check.xlsx")
+
+
+
+
+for (k in c(13:42)){
+  
+ for (i in c(971:10)){
+  away = second[i,4]
+  a = 0
+  MAP = 0
+  j = i-1
+   while (j > 0){
+    if (second[j,4] == away){
+      MAP = MAP + second[j,k]
+      a = a + 1
+      j = j - 1
+    } else if
+    (second[j,6] == away){
+      MAP = MAP + second[j,k+30]
+      a = a + 1
+      j = j - 1
+    } else {j = j - 1}
+ if (a == 5){
+  break
+ }
+  }
+second[i,150+k] = MAP/a  
+ }  
+print("A")
+ }
+
+
+
+
+for (k in c(43:72)){
+  
+ for (i in c(971:10)){
+  away = second[i,6]
+  a = 0
+  MAP = 0
+  j = i-1
+   while (j > 0){
+    if (second[j,4] == away){
+      MAP = MAP + second[j,k-30]
+      a = a + 1
+      j = j - 1
+    } else if
+    (second[j,6] == away){
+      MAP = MAP + second[j,k]
+      a = a + 1
+      j = j - 1
+    } else {j = j - 1}
+ if (a == 5){
+  break
+ }
+  }
+second[i,150+k] = MAP/a  
+ }  
+print("B")
+ }
+```
+
+
+
+
+
+```{r}
+
+
+
+for (k in c(13:42)){
+  
+ for (i in c(971:10)){
+  away = second[i,4]
+  a = 0
+  MAP = 0
+  j = i-1
+   while (j > 0){
+    if (second[j,4] == away){
+      MAP = MAP + second[j,k]
+      a = a + 1
+      j = j - 1
+    } else if
+    (second[j,6] == away){
+      MAP = MAP + second[j,k+30]
+      a = a + 1
+      j = j - 1
+    } else {j = j - 1}
+ if (a == 1){
+  break
+ }
+  }
+second[i,210+k] = MAP/a  
+ }  
+print("A")
+ }
+
+
+
+
+for (k in c(43:72)){
+  
+ for (i in c(971:10)){
+  away = second[i,6]
+  a = 0
+  MAP = 0
+  j = i-1
+   while (j > 0){
+    if (second[j,4] == away){
+      MAP = MAP + second[j,k-30]
+      a = a + 1
+      j = j - 1
+    } else if
+    (second[j,6] == away){
+      MAP = MAP + second[j,k]
+      a = a + 1
+      j = j - 1
+    } else {j = j - 1}
+ if (a == 1){
+  break
+ }
+  }
+second[i,210+k] = MAP/a  
+ }  
+print("B")
+ }
+
+```
+
+
+
+```{r}
+
+for (k in c(13:72)){
+  
+ for (i in c(1:971)){
+
+second[i, k + 86] = second[i, k + 86] - second[i,k]  
+ }  
+ }
+
+
+for (k in c(13:72)){
+  
+ for (i in c(1:971)){
+
+second[i, k + 150] = second[i, k + 150] - second[i,k]  
+ }  
+ }
+
+
+for (k in c(13:72)){
+  
+ for (i in c(1:971)){
+
+second[i, k + 210] = second[i, k + 210] - second[i,k]  
+ }  
+print("A")
+}
+
+```
