@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AngleSharp;
@@ -13,20 +15,22 @@ namespace StackOverflow
     {
         static async Task Main(string[] args)
         {
+
             var config = Configuration.Default.WithDefaultLoader();
             var context = BrowsingContext.New(config);
             var htmlParser = new StackOverflowParser();
-
+            
             var questionsStream = new QuestionsStream(context, htmlParser);
-
+            
             var questions = new List<Question>();
-
-            await foreach (var question in questionsStream.GetQuestions("c%23"))
+            
+            // await foreach (var question in questionsStream.GetQuestions("c%23"))
+            await foreach (var question in questionsStream.GetQuestions(".net"))
             {
                 Console.WriteLine("WE GET A NEW QUESTION");
                 questions.Add(question);
             }
-
+            
             await using var fs = File.Create("questions.json");
             
             await JsonSerializer.SerializeAsync(fs, questions);

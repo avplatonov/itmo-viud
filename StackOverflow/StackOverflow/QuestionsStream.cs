@@ -1,7 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using AngleSharp;
 using StackOverflow.Abstracts;
@@ -13,7 +17,7 @@ namespace StackOverflow
     {
         private readonly IBrowsingContext _context;
         private readonly IHtmlParser _parser;
-        
+
         private readonly HttpClient _client = new HttpClient();
 
         public QuestionsStream(IBrowsingContext context, IHtmlParser parser)
@@ -25,15 +29,20 @@ namespace StackOverflow
         public async IAsyncEnumerable<Question> GetQuestions(string tag)
         {
             var url = $"https://api.stackexchange.com/2.2/tags/{tag}/faq?site=stackoverflow";
-
-            var response = await _client.GetAsync(url);
             
-            response.EnsureSuccessStatusCode();
+            var responseStream = await _client.GetStreamAsync(url);
 
-            // var readAsStringAsync = await response.Content.ReadAsStringAsync();
-            // Console.WriteLine(readAsStringAsync);
+            await using (var decompressedFileStream = File.Create("faq.json"))
+            {
+                await using (var decompressionStream = new GZipStream(responseStream, CompressionMode.Decompress))
+                {
+                    await decompressionStream.CopyToAsync(decompressedFileStream);
+                }
+            }
 
-            var jsonUtf8Bytes = await response.Content.ReadAsByteArrayAsync();
+            var text = await File.ReadAllTextAsync("faq.json");
+
+            var jsonUtf8Bytes = Encoding.UTF8.GetBytes(text);
 
             var faq = ParseTagsFAQ(jsonUtf8Bytes);
             
@@ -48,16 +57,8 @@ namespace StackOverflow
             }
         }
 
-        private static List<string> ParseTagsFAQ(byte[] jsonUtf8Bytes)
+        private static List<int> ParseTagsFAQ(byte[] jsonUtf8Bytes)
         {
-            // jsonUtf8Bytes = jsonUtf8Bytes[1..];
-            
-            // Console.WriteLine(jsonUtf8Bytes[0]);
-            
-            // new JsonReaderOptions
-            // {
-            //     
-            // }
             var reader = new Utf8JsonReader(jsonUtf8Bytes);
             
             using var jsonDocument = JsonDocument.ParseValue(ref reader);
@@ -67,7 +68,7 @@ namespace StackOverflow
                 .EnumerateArray()
                 .Select(e => e
                     .GetProperty("question_id")
-                    .GetString())
+                    .GetInt32())
                 .ToList();
         }
     }
