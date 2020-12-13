@@ -14,7 +14,7 @@ def do_session():
 def upload_file_to_bucket(file_path):
     client = do_session()
     file_dir, file_name = os.path.split(file_path)
-    client.upload_file(file_path, 'creepio', file_name)
+    client.upload_file(file_path, 'creepio', file_name, ExtraArgs={'ACL':'public-read'})
 
     s3_url = f"https://creepio.fra1.digitaloceanspaces.com/{file_name}"
     return s3_url

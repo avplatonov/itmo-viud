@@ -17,7 +17,10 @@ collection = db.videos
 url = "https://www.geocam.ru/in/st-petersburg/"
 camera_data = getAllCameras(url)
 for camera in camera_data:
-    files = dl_stream(camera["video_link"], "/live", 5)
-    camera["files"] = files
-    collection.insert_one(camera)
+    try:
+        files = dl_stream(camera["video_link"], "/live", 5)
+        camera["files"] = files
+        collection.insert_one(camera)
+    except:
+        pass
 
