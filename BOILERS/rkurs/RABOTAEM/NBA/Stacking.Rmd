@@ -1,0 +1,430 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(dplyr)
+library(gbm)
+library(randomForest)
+library(fastDummies)
+library(neuralnet)
+library(caret)
+library(pROC)
+
+library(readxl)
+winner <- read_excel("WINNER_with_date.xlsx")
+winner$ID = c(1:nrow(winner))
+winner$GDate = as.Date(winner$GDate)
+winner$code = paste(winner$Away,"vs",winner$Home,sep = "-")
+winner= winner %>% na.omit()
+winner$HOME_WIN = as.factor(winner$HOME_WIN)
+winner$ALastGameAgo = as.numeric(winner$ALastGameAgo)
+winner$HLastGameAgo = as.numeric(winner$HLastGameAgo)
+winner=winner %>% mutate_if(is.character, as.factor)
+```
+
+
+```{r}
+st3_acc_b = c()
+st3_profit_b = c()
+st3_utility_profit_b = c()
+st3_sens_b = c()
+st3_spec_b = c()
+st3_auc_b = c()
+```
+
+
+```{r}
+i=0
+for (i in (0:254)){
+        start = 400
+        end = 600
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        
+        newtest = winner[(end+i+1):(end+i+101),1:length(winner)]
+
+        train = train %>% dplyr::select(-ID,-code,-GDate)
+        test = test %>% dplyr::select(-ID,-code,-GDate)
+        
+        newtest = newtest  %>% dplyr::select(-ID,-code,-GDate)
+
+
+
+
+
+############### ALLL ###################
+
+        
+        #BOOSTING (for all)
+        
+        
+        
+        
+        
+        
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+
+        
+        
+        
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+        
+        new_predTestProb.boost = predict(model.boost, newtest, n.trees = 2000, type = "response")
+        new_Test.pred0.5.boost <- ifelse(new_predTestProb.boost> 0.5,1,0)
+
+        
+        
+  
+
+
+      #RF (for all)
+        
+        
+        model.rf=randomForest(HOME_WIN~.,data=train, mtry=5, ntree = 1000,na.action=na.roughfix)
+        
+        predTest.rf = predict(model.rf, test,"prob")[,2]
+        predTest.rf0.5 = predict(model.rf, test)
+
+        
+        new_predTest.rf = predict(model.rf, newtest,"prob")[,2]
+        new_predTest.rf0.5 = predict(model.rf, newtest)
+
+
+        
+        
+      ########   NB      ##################
+      
+        #Logist (NB)
+        
+
+
+
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        
+        newtest = winner[(end+i+1):(end+i+101),1:length(winner)]
+
+        train = train %>% dplyr::select(-ID,-code,-GDate)
+        test = test %>% dplyr::select(-ID,-code,-GDate)
+        
+        newtest = newtest  %>% dplyr::select(-ID,-code,-GDate)
+        
+        
+        library(pROC)
+        
+        BETS = c(2,4,5,6,7,8,222)
+
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[-BETS],collapse="+")))
+        
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+        
+        
+        
+        
+        Log.test_nb = predict(log.model, newdata = test, type = "response")
+        Log.pred.test0.5_nb = ifelse(Log.test_nb > 0.5,1,0)
+        
+        new_Log.test_nb = predict(log.model, newdata = newtest, type = "response")
+        new_Log.pred.test0.5_nb = ifelse(new_Log.test_nb > 0.5,1,0)
+
+        
+
+        
+##############   BETS ##############
+        
+        
+        # LOGIST (B)
+        
+        BETS = c(2,4,5,6,7,8)
+
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[BETS],collapse="+")))
+        
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+
+        
+                
+        Log.test = predict(log.model, newdata = test, type = "response")
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+
+        new_Log.test = predict(log.model, newdata = newtest, type = "response")
+        newLog.pred.test0.5 = ifelse(new_Log.test > 0.5,1,0)
+      
+################   STACK   ########################
+      
+      
+      
+      dataStack =  data.frame(gbm = predTestProb.boost,
+                              rf = predTest.rf ,
+                              log_nb = Log.test_nb ,
+                              log_b = Log.test,
+                              HOME_WIN = test$HOME_WIN)
+      
+      
+      model.stack = caret::train(HOME_WIN~., data=(dataStack %>% na.omit() ), method = "glm")
+      
+
+      
+      new_predictionsTest =  data.frame(gbm = new_predTestProb.boost,
+                              rf = new_predTest.rf ,
+                              log_nb = new_Log.test_nb ,
+                              log_b = new_Log.test,
+                              HOME_WIN = newtest$HOME_WIN)
+      
+      
+      new_predTest.stack = predict(model.stack, newdata = new_predictionsTest,"prob")[,2]
+      
+      new_predTest.stack0.5 <- ifelse(new_predTest.stack> 0.5,1,0)
+
+
+
+      
+              accuracyTest.ann = confusionMatrix(as.factor(new_predTest.stack0.5), as.factor(newtest$HOME_WIN), positive = "1")$overall["Accuracy"]
+
+        accuracyTest.ann
+        
+        sensTest.ann = confusionMatrix(as.factor(new_predTest.stack0.5), as.factor(newtest$HOME_WIN), positive = "1")$byClass["Sensitivity"]
+        
+        specTest.ann = confusionMatrix(as.factor(new_predTest.stack0.5), as.factor(newtest$HOME_WIN), positive = "1")$byClass["Specificity"]
+        
+        
+        
+        
+
+        
+
+        
+        ROCfull = roc(response = newtest$HOME_WIN, predictor = new_predTest.stack)
+        
+        ROCfull$auc
+        
+
+        
+        
+        stack.profit = case_when(
+            (new_predTest.stack0.5 == newtest$HOME_WIN) & (new_predTest.stack0.5 == 1) ~ 100*newtest$HODD - 100,
+            (new_predTest.stack0.5 == newtest$HOME_WIN) &(new_predTest.stack0.5 == 0)  ~ 100*newtest$AODD - 100,
+            new_predTest.stack0.5 != newtest$HOME_WIN ~ -100
+        )
+        
+        
+        ho = new_predTest.stack*(newtest$HODD-1)*100 - (1 - new_predTest.stack)*100
+        aw = (1 - new_predTest.stack)*(newtest$AODD - 1)*100 - (new_predTest.stack)*100 
+        
+        
+        
+        stack.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (newtest$HOME_WIN == 1) ~ 100*newtest$HODD - 100,
+            (ho > aw) & (ho > 0) &(newtest$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (newtest$HOME_WIN == 0)  ~ 100*newtest$AODD - 100,
+            (ho < aw) & (aw > 0) & (newtest$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        sum(stack.profit_utility)
+        
+        
+        st3_acc_b = c(st3_acc_b, accuracyTest.ann)
+        st3_profit_b = c(st3_profit_b, sum(stack.profit))
+        st3_utility_profit_b = c(st3_utility_profit_b, sum(stack.profit_utility))
+        st3_sens_b = c(st3_sens_b,sensTest.ann )
+        st3_spec_b = c(st3_spec_b,specTest.ann )
+        st3_auc_b = c(st3_auc_b,  ROCfull$auc)
+        
+        print(i)
+}      
+      
+              
+```
+
+
+```{r}
+iteration=c(101:355)
+
+stack3 = data.frame(
+        st3_acc_b, 
+        st3_profit_b, 
+        st3_utility_profit_b, 
+        st3_sens_b ,
+        st3_spec_b,
+        st3_auc_b,
+        iteration
+        )
+
+write.csv(stack3,"st_3.csv", row.names = FALSE)
+
+```
+
+
+
+
+
+
+
+```{r}
+ggplot(stack3, aes(x=iteration),) +
+    geom_line( aes(y=st3_utility_profit_b,color="red"))
+ 
+
+```
+
+
+```{r}
+st_1 <- read_csv("st_1.csv")
+st_2 <- read_csv("st_2.csv")
+st_3 <- read_csv("st_3.csv")
+
+#colnames(st_1) = c("st1_acc","st1_profit","st1_utility_profit","st1_sens", "st1_spec", "st1_auc", "iteration")
+
+#colnames(st_3) = c("st3_acc","st3_profit","st3_utility_profit","st3_sens", "st3_spec", "st3_auc", "iteration")
+#write.csv(st_1,"st_1.csv", row.names = FALSE)
+#write.csv(st_2,"st_2.csv", row.names = FALSE)
+write.csv(st_3,"st_3.csv", row.names = FALSE)
+
+
+```
+
+```{r}
+st_1 <- read_csv("st_1.csv")
+st_2 <- read_csv("st_2.csv")
+st_3 <- read_csv("st_3.csv")
+
+all_stack = st_1 %>% inner_join(st_2) %>% inner_join(st_3)
+#write.csv(all_stack,"all_stack.csv", row.names = FALSE)
+
+```
+
+
+
+```{r}
+ggplot(all_stack, aes(x=iteration),) +
+    geom_line( aes(y=st1_utility_profit),color="red")+
+    geom_line( aes(y=st2_utility_profit),color="blue")+
+    geom_line( aes(y=st3_utility_profit),color="green")
+
+ggplot(all_stack, aes(x=iteration),) +
+    geom_line( aes(y=st1_acc),color="red")+
+    geom_line( aes(y=st2_acc),color="blue")+
+    geom_line( aes(y=st3_acc),color="green")
+
+```
+
+#СТАКИНГ СРАВНЕНИЕ
+```{r}
+Stack1 = c(mean(all_stack$st1_acc),
+           sd(all_stack$st1_acc),
+           mean(all_stack$st1_profit),
+           sd(all_stack$st1_profit),
+           mean(all_stack$st1_utility_profit),
+          sd(all_stack$st1_utility_profit)
+  
+)
+
+Stack2 = c(mean(all_stack$st2_acc),
+           sd(all_stack$st2_acc),
+           mean(all_stack$st2_profit),
+           sd(all_stack$st2_profit),
+           mean(all_stack$st2_utility_profit),
+          sd(all_stack$st2_utility_profit)
+  
+)
+
+Stack3 = c(mean(all_stack$st3_acc),
+           sd(all_stack$st3_acc),
+           mean(all_stack$st3_profit),
+           sd(all_stack$st3_profit),
+           mean(all_stack$st3_utility_profit),
+          sd(all_stack$st3_utility_profit)
+  
+)
+
+compare_st = data.frame(Stack1,Stack2,Stack3)
+
+rownames(compare_st) = c("acc_mean", "acc_sd","prof_mean", "prof_sd", "utility_profit_mean", "utility_profit_sd")
+
+print(xtable(compare_st, type = "latex"))
+
+toLatex(compare_st, digits=4)
+```
+
+#СТАКИНГ VS GBM
+
+```{r}
+
+st_vs_all = all_comparison %>% inner_join(all_stack)
+
+Gbm = c(mean(st_vs_all$gbm_acc),
+           sd(st_vs_all$gbm_acc),
+           mean(st_vs_all$gbm_profit),
+           sd(st_vs_all$gbm_profit),
+           mean(st_vs_all$gbm_utility_profit),
+          sd(st_vs_all$gbm_utility_profit)
+  
+)
+
+compare_st_gbm = data.frame(Stack3,Gbm)
+rownames(compare_st_gbm) = c("acc_mean", "acc_sd","prof_mean", "prof_sd", "utility_profit_mean", "utility_profit_sd")
+
+print(xtable(compare_st_gbm, type = "latex"))
+
+toLatex(compare_st_gbm, digits=4)
+
+```
+
+
+```{r}
+library(dplyr)
+library(readr)
+all_stack <- read_csv("all_stack.csv")
+
+st_vs_all = all_comparison %>% inner_join(all_stack)
+
+```
+
+
+
+
+```{r}
+
+colors <- c("Stack1" = "blue", "Stack2" = "red", "Stack3" = "green", "Gbm" = "black")
+ggplot(st_vs_all, aes(x=iteration),) +
+    geom_line( aes(y=st1_acc,color="Stack1")) +
+    geom_line( aes(y=st2_acc,color="Stack2")) +
+    geom_line( aes(y=st3_acc,color="Stack3"))+
+    geom_line( aes(y=gbm_acc,color="Gbm"))+
+  labs(color = "Type of models") +
+    scale_color_manual(values = colors)
+
+
+colors <- c("Stack1" = "blue", "Stack2" = "red", "Stack3" = "green", "Gbm" = "black")
+ggplot(st_vs_all, aes(x=iteration),) +
+    geom_line( aes(y=st1_profit,color="Stack1")) +
+    geom_line( aes(y=st2_profit,color="Stack2")) +
+    geom_line( aes(y=st3_profit,color="Stack3"))+
+    geom_line( aes(y=gbm_profit,color="Gbm"))+
+  labs(color = "Type of models") +
+    scale_color_manual(values = colors)
+
+colors <- c("Stack1" = "blue", "Stack2" = "red", "Stack3" = "green", "Gbm" = "black")
+ggplot(st_vs_all, aes(x=iteration),) +
+    geom_line( aes(y=st1_utility_profit,color="Stack1")) +
+    geom_line( aes(y=st2_utility_profit,color="Stack2")) +
+    geom_line( aes(y=st3_utility_profit,color="Stack3"))+
+    geom_line( aes(y=gbm_utility_profit,color="Gbm"))+
+  labs(color = "Type of model") +
+  ylab("expected value profit")+
+    scale_color_manual(values = colors)
+
+```
+

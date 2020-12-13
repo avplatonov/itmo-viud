@@ -1,0 +1,54 @@
+---
+title: "E"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(readxl)
+total <- read_excel("TOTAL.xlsx")
+total$ALastGameAgo = as.numeric(total$ALastGameAgo)
+total$HLastGameAgo = as.numeric(total$HLastGameAgo)
+
+```
+
+
+
+
+#ДЕЛИМ НА ТЕСТ
+```{r}
+l = 100
+
+train = total[1:(nrow(total)-l),1:length(total)]
+test = total[(nrow(total)-l+1):nrow(total),1:length(total)]
+rm(l)
+```
+
+#РЕГРЕССИЯ
+```{r}
+options(max.print=1000000)
+reg = lm(Total~., data = train)
+summary(reg)
+```
+Предикт
+```{r}
+test$pred = predict(reg, newdata = test)
+```
+ФИКСИРУЕМ ПРИБЫЛЬ
+
+```{r}
+library(dplyr)
+test$profit = case_when(
+  (test$pred > test$TotalClose) & (test$Total > test$TotalClose) ~ 100*0.87,
+  (test$pred < test$TotalClose) & (test$Total < test$TotalClose)  ~ 100*0.87,
+  T ~ -100
+)
+sum(test$profit)
+```
+

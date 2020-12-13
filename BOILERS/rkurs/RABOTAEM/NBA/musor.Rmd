@@ -1,0 +1,574 @@
+```{r}
+date = as.Date("2020-01-19")
+
+game_id= 638
+```
+
+
+
+```{r}
+library(dplyr)
+library(readxl)
+winner <- read_excel("WINNER_with_date.xlsx")
+winner$ID = c(1:nrow(winner))
+winner$GDate = as.Date(winner$GDate)
+winner$code = paste(winner$Away,"vs",winner$Home,sep = "-")
+winner= winner %>% na.omit()
+winner$HOME_WIN = as.factor(winner$HOME_WIN)
+winner$ALastGameAgo = as.numeric(winner$ALastGameAgo)
+winner$HLastGameAgo = as.numeric(winner$HLastGameAgo)
+winner=winner %>% mutate_if(is.character, as.factor)
+
+        test = winner %>% filter(ID==game_id)
+        train = winner %>% filter(GDate < date)
+```
+
+```{r}
+library(readxl)
+total <- read_excel("TOTAL_with_date.xlsx")
+total$ID = c(1:nrow(total))
+total$GDate = as.Date(total$GDate)
+total$code = paste(total$Away,"vs",total$Home,sep = "-")
+total= total %>% na.omit()
+total$ALastGameAgo = as.numeric(total$ALastGameAgo)
+total$HLastGameAgo = as.numeric(total$HLastGameAgo)
+total=total %>% mutate_if(is.character, as.factor)
+
+
+test = total %>% filter(ID==game_id)
+train = total %>% filter(GDate < date)
+
+```
+
+```{r}
+
+library(readxl)
+fora <- read_excel("FORA_with_date.xlsx")
+fora$ID = c(1:nrow(fora))
+fora$GDate = as.Date(fora$GDate)
+fora$code = paste(fora$Away,"vs",fora$Home,sep = "-")
+fora= fora %>% na.omit()
+fora$ALastGameAgo = as.numeric(fora$ALastGameAgo)
+fora$HLastGameAgo = as.numeric(fora$HLastGameAgo)
+fora=fora %>% mutate_if(is.character, as.factor)
+
+test = fora %>% filter(ID==game_id)
+train = fora %>% filter(GDate < date)
+```
+
+
+
+
+
+```{r}
+win=winner[1:2,]
+NEWTEST = win[1:round(0.7*nrow(win)),]
+NEWTEST2 = win[ceiling(0.7*nrow(win)):nrow(win),]
+
+
+
+```
+
+
+
+```{r}
+        test = winner %>% filter(ID==game_id)
+        train = winner %>% filter(GDate < date)
+        test = test %>% select(-GDate,-code,ID)
+        train = train %>% select(-GDate,-code,ID)
+        train <- as.data.frame(unclass(train)) 
+        test = as.data.frame(unclass(test))
+        #####CODE#####
+        debug_contr_error <- function (train, subset_vec = NULL) {
+          if (!is.null(subset_vec)) {
+            ## step 0
+            if (mode(subset_vec) == "logical") {
+              if (length(subset_vec) != nrow(train)) {
+                stop("'logical' `subset_vec` provided but length does not match `nrow(train)`")
+              }
+              subset_log_vec <- subset_vec
+            } else if (mode(subset_vec) == "numeric") {
+              ## check range
+              ran <- range(subset_vec)
+              if (ran[1] < 1 || ran[2] > nrow(train)) {
+                stop("'numeric' `subset_vec` provided but values are out of bound")
+              } else {
+                subset_log_vec <- logical(nrow(train))
+                subset_log_vec[as.integer(subset_vec)] <- TRUE
+              }
+            } else {
+              stop("`subset_vec` must be either 'logical' or 'numeric'")
+            }
+            train <- base::subset(train, subset = subset_log_vec)
+          } else {
+            ## step 1
+            train <- stats::na.omit(train)
+          }
+          if (nrow(train) == 0L) warning("no complete cases")
+          ## step 2
+          var_mode <- sapply(train, mode)
+          if (any(var_mode %in% c("complex", "raw"))) stop("complex or raw not allowed!")
+          var_class <- sapply(train, class)
+          if (any(var_mode[var_class == "AsIs"] %in% c("logical", "character"))) {
+            stop("matrix variables with 'AsIs' class must be 'numeric'")
+          }
+          ind1 <- which(var_mode %in% c("logical", "character"))
+          train[ind1] <- lapply(train[ind1], as.factor)
+          ## step 3
+          fctr <- which(sapply(train, is.factor))
+          if (length(fctr) == 0L) warning("no factor variables to summary")
+          ind2 <- if (length(ind1) > 0L) fctr[-ind1] else fctr
+          train[ind2] <- lapply(train[ind2], base::droplevels.factor)
+          ## step 4
+          lev <- lapply(train[fctr], base::levels.default)
+          nl <- lengths(lev)
+          ## return
+          b = list(nlevels = nl, levels = lev)
+          assign("be", b, envir = .GlobalEnv)
+        }
+        
+        debug_contr_error(train)
+        be$nlevels
+        factors <- which(sapply(train, is.factor))
+        
+        BAD = c(as.numeric(be$nlevels[1]) != 30, as.numeric(be$nlevels[2]) != 30, as.numeric(be$nlevels[3]) != 2, as.numeric(be$nlevels[4]) != 2, as.numeric(be$nlevels[5]) != 2, as.numeric(be$nlevels[6]) != 2, as.numeric(be$nlevels[7]) != 3, as.numeric(be$nlevels[8]) != 2, as.numeric(be$nlevels[9]) != 2, as.numeric(be$nlevels[10]) != 1)
+        
+        WORSE = factors[BAD]
+        #####CODE#####
+        formula <- as.formula(paste(colnames(train)[222],'~', colnames(train)[-WORSE]))
+        
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+        
+
+        Log.train = predict(log.model, newdata = train, type = "response")
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+            if (as.numeric(Log.test) > 0.5){
+            
+            result = test[1,"Home"]
+            coeff = test[1,4]
+            
+            } else {
+            result = test[1,"Away"]
+            coeff = test[1,2]
+            }    
+        
+        
+        
+        test$value_home = Log.test * 100 * (test$HODD - 1) - (1-Log.test) * 100
+        test$value_away = (1-Log.test) * 100 * (test$AODD - 1) - Log.test * 100
+        
+        test$team = case_when(
+          (test$value_home >= test$value_away) & (test$value_home > 0) ~ test$Home,
+          (test$value_away >= test$value_home) & (test$value_away > 0) ~ test$Away,
+          TRUE ~ "0")
+        
+        test$coeff = dplyr::case_when(
+          test$team == test$Home ~ test$HODD,
+          test$team == test$Away ~ test$AODD,
+          TRUE ~ 0)
+        
+        test$prob = dplyr::case_when(
+          test$team == test$Home ~ Log.test,
+          test$team == test$Away ~ 1 - Log.test,
+          TRUE ~ 0)
+        
+        if (test$team != as.factor(0)){
+          str1 = paste0("The coefficients for this match are: ", round(test$HODD, digits = 3)," for ", test$Home, " and ", round(test$AODD, digits = 3), " for ", test$Away,"<br/> ", "We recommend to put a bet on ", test$team, " with a coefficient ", round(test$coeff, digits = 3), "<br/> ", "According to out prediction, ", test$team, "'s probability to win is ", round(test$prob, digits = 3),"<br/> " ,"Expected profit from this bet is ", round(max(test$value_home, test$value_away), digits = 3),".")
+        } else {
+          str1 = paste0("The coefficients for this match are: ", round(test$HODD, digits = 3)," for ", test$Home, " and ", round(test$AODD, digits = 3), " for ", test$Away,". There is no optimal prediction for this match: the coefficients are not profitable.")
+        }
+         
+  
+        #str1 = paste("We recommend you to bet on", paste("<b>",result,"</b>"), "with coefficient",paste("<b>",coeff,"</b>"))
+        
+        if (test$HOME_WIN == 1){
+          
+          winner = test[1, "Home"]
+          
+        } else {
+          winner = test[1, "Away"]
+        }
+        
+        if (((test$HOME_WIN == 1) & (test$team == test$Home)) | ((test$HOME_WIN == 0) & (test$team == test$Away))){
+          
+          proper = "correct"
+          
+        } else {
+          proper = "incorrect"
+        }
+        
+        library(stringr)
+        if (str_detect(str1, "optimal")){
+          str2 = paste("The true winner of this match is","<b>" ,winner,"</b>")
+        } else {
+          str2 = paste("The true winner of this match is","<b>" ,winner,"</b>", ", the prediction is", proper)
+        }        
+        
+        HTML(paste(str1, str2, sep = '<br/>'))
+```
+
+
+
+```{r}
+            test = winner %>% filter(ID==game_id)
+            train = winner %>% filter(GDate < as.Date(date))
+            test = test %>% select(-GDate,-code,-ID)
+            train = train %>% select(-GDate,-code,-ID)
+            train <- as.data.frame(unclass(train)) 
+            test = as.data.frame(unclass(test))
+            
+            
+            set.seed(1)
+            model.rf=randomForest::randomForest(HOME_WIN~.,data=train, mtry=5, ntree = 1000)
+            
+            
+            predTrain.rf =as.numeric(predict(model.rf, train)) - 1
+            predTest.rf = predict(model.rf, test)
+            predTest.rf = as.numeric(predTest.rf) - 1
+            
+            predTest.rf = predict(model.rf, test,"prob")[,2]
+            
+            
+            
+            if (predTest.rf > 0.5){
+                
+                result = test[1,"Home"]
+                coeff = test[1,4]
+                
+            } else {
+                result = test[1,"Away"]
+                coeff = test[1,2]
+            }    
+            
+            test$Home = as.character(test$Home)
+            test$Away = as.character(test$Away)
+            
+            test$value_home = predTest.rf * 100 * (test$HODD - 1) - (1-predTest.rf) * 100
+            test$value_away = (1-predTest.rf) * 100 * (test$AODD - 1) - predTest.rf * 100
+            
+            test$team = case_when(
+              (test$value_home >= test$value_away) & (test$value_home > 0) ~ test$Home,
+              (test$value_away >= test$value_home) & (test$value_away > 0) ~ test$Away,
+              TRUE ~ "0")
+            
+            test$coeff = dplyr::case_when(
+              test$team == test$Home ~ test$HODD,
+              test$team == test$Away ~ test$AODD,
+              TRUE ~ 0)
+            
+            test$prob = dplyr::case_when(
+              test$team == test$Home ~ Log.test,
+              test$team == test$Away ~ 1 - Log.test,
+              TRUE ~ 0)
+            
+            if (test$team != as.factor(0)){
+              str1 = paste0("The coefficients for this match are: ", round(test$HODD, digits = 3)," for ", test$Home, " and ", round(test$AODD, digits = 3), " for ", test$Away,"<br/> ", "We recommend to put a bet on ", test$team, " with a coefficient ", round(test$coeff, digits = 3), "<br/> ", "According to out prediction, ", test$team, "'s probability to win is ", round(test$prob, digits = 3),"<br/> " ,"Expected profit from this bet is ", round(max(test$value_home, test$value_away), digits = 3),".")
+            } else {
+              str1 = paste0("The coefficients for this match are: ", round(test$HODD, digits = 3)," for ", test$Home, " and ", round(test$AODD, digits = 3), " for ", test$Away,". There is no optimal prediction for this match: the coefficients are not profitable.")
+            }
+            
+            
+            #str1 = paste("We recommend you to bet on", paste("<b>",result,"</b>"), "with coefficient",paste("<b>",coeff,"</b>"))
+            
+            if (test$HOME_WIN == 1){
+              
+              winner = test[1, "Home"]
+              
+            } else {
+              winner = test[1, "Away"]
+            }
+            
+            if (((test$HOME_WIN == 1) & (as.factor(test$team) == test$Home)) | ((test$HOME_WIN == 0) & (as.factor(test$team) == test$Away))){
+              
+              proper = '<font color="	#008000">correct</font>'
+              
+            } else {
+              proper = '<font color="	#ff0000">incorrect</font>'
+            }
+            
+            library(stringr)
+            if (str_detect(str1, "optimal")){
+              str2 = paste("The true winner of this match is","<b>" ,winner,"</b>")
+            } else {
+              str2 = paste("The true winner of this match is","<b>" ,winner,"</b>", ", the prediction is", proper)
+            }        
+            
+            HTML(paste(str1, str2, sep = '<br/>'))
+```
+
+
+
+
+```{r}
+            test = winner %>% filter(ID==game_id)
+            train = winner %>% filter(GDate < as.Date(date))
+            test = test %>% select(-GDate,-code,-ID)
+            train = train %>% select(-GDate,-code,-ID)
+            train <- as.data.frame(unclass(train)) 
+            test = as.data.frame(unclass(test))
+            #####CODE#####
+            debug_contr_error <- function (train, subset_vec = NULL) {
+              if (!is.null(subset_vec)) {
+                ## step 0
+                if (mode(subset_vec) == "logical") {
+                  if (length(subset_vec) != nrow(train)) {
+                    stop("'logical' `subset_vec` provided but length does not match `nrow(train)`")
+                  }
+                  subset_log_vec <- subset_vec
+                } else if (mode(subset_vec) == "numeric") {
+                  ## check range
+                  ran <- range(subset_vec)
+                  if (ran[1] < 1 || ran[2] > nrow(train)) {
+                    stop("'numeric' `subset_vec` provided but values are out of bound")
+                  } else {
+                    subset_log_vec <- logical(nrow(train))
+                    subset_log_vec[as.integer(subset_vec)] <- TRUE
+                  }
+                } else {
+                  stop("`subset_vec` must be either 'logical' or 'numeric'")
+                }
+                train <- base::subset(train, subset = subset_log_vec)
+              } else {
+                ## step 1
+                train <- stats::na.omit(train)
+              }
+              if (nrow(train) == 0L) warning("no complete cases")
+              ## step 2
+              var_mode <- sapply(train, mode)
+              if (any(var_mode %in% c("complex", "raw"))) stop("complex or raw not allowed!")
+              var_class <- sapply(train, class)
+              if (any(var_mode[var_class == "AsIs"] %in% c("logical", "character"))) {
+                stop("matrix variables with 'AsIs' class must be 'numeric'")
+              }
+              ind1 <- which(var_mode %in% c("logical", "character"))
+              train[ind1] <- lapply(train[ind1], as.factor)
+              ## step 3
+              fctr <- which(sapply(train, is.factor))
+              if (length(fctr) == 0L) warning("no factor variables to summary")
+              ind2 <- if (length(ind1) > 0L) fctr[-ind1] else fctr
+              train[ind2] <- lapply(train[ind2], base::droplevels.factor)
+              ## step 4
+              lev <- lapply(train[fctr], base::levels.default)
+              nl <- lengths(lev)
+              ## return
+              b = list(nlevels = nl, levels = lev)
+              assign("be", b, envir = .GlobalEnv)
+            }
+            
+            debug_contr_error(train)
+            be$nlevels
+            factors <- which(sapply(train, is.factor))
+            BAD = c(as.numeric(be$nlevels[1]) != 30, as.numeric(be$nlevels[2]) != 30, as.numeric(be$nlevels[3]) != 2, as.numeric(be$nlevels[4]) != 2, as.numeric(be$nlevels[5]) != 2, as.numeric(be$nlevels[6]) != 2, as.numeric(be$nlevels[7]) != 3, as.numeric(be$nlevels[8]) != 2, as.numeric(be$nlevels[9]) != 2, as.numeric(be$nlevels[10]) != 1)
+            WORSE = factors[BAD]
+            #####CODE#####
+            formula <- as.formula(paste(colnames(train)[222],'~', colnames(train)[-WORSE]))
+            log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+            
+            Log.train = predict(log.model, newdata = train, type = "response")
+            Log.test = predict(log.model, newdata = test, type = "response")
+            
+            Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+            Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+
+            
+            test = winner %>% filter(ID==game_id1())
+            train = winner %>% filter(GDate < as.Date(input$date))
+            test = test %>% select(-GDate,-code,-ID)
+            train = train %>% select(-GDate,-code,-ID)
+            train <- as.data.frame(unclass(train)) 
+            test = as.data.frame(unclass(test))
+            
+            set.seed(1)
+            model.rf=randomForest::randomForest(HOME_WIN~.,data=train, mtry=5, ntree = 1000)
+            
+            
+            predTrain.rf =as.numeric(predict(model.rf, train)) - 1
+            predTest.rf = predict(model.rf, test)
+            predTest.rf = as.numeric(predTest.rf) - 1
+
+            test = winner %>% filter(ID==game_id)
+            train = winner %>% filter(GDate < as.Date(date))
+            test = test %>% select(-GDate,-code,-ID)
+            train = train %>% select(-GDate,-code,-ID)
+            
+            train$HOME_WIN = as.numeric(train$HOME_WIN) - 1
+            test$HOME_WIN = as.numeric(test$HOME_WIN) - 1
+            
+            train1 = fastDummies::dummy_cols(train,remove_selected_columns = T,remove_first_dummy = TRUE)
+            test1 = fastDummies::dummy_cols( test,remove_selected_columns = T,remove_first_dummy = TRUE)
+            
+            nn=neuralnet(HOME_WIN~.,data=(train1 %>% na.omit()) , hidden=3,act.fct = "logistic",
+                         linear.output = FALSE)
+            
+            
+            predTrain.nn = predict(nn,train1 %>% na.omit())
+            predTest.nn = predict(nn, test1 %>% na.omit())
+            
+            Ann.pred.train0.5 = ifelse(predTrain.nn > 0.5,1,0)
+            Ann.pred.test0.5 = ifelse(predTest.nn > 0.5,1,0)
+            
+            
+            
+            test = winner %>% filter(ID==game_id)
+            train = winner %>% filter(GDate < as.Date(date))
+            test = test %>% select(-GDate,-code,-ID)
+            train = train %>% select(-GDate,-code,-ID)
+            train <- as.data.frame(unclass(train)) 
+            test = as.data.frame(unclass(test))
+            
+            model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+            
+            predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+            predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+            
+            Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+            Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+            
+            
+            dataStack =  data.frame(reg = Log.pred.train0.5, 
+                                    rf = predTrain.rf, 
+                                    ann = Ann.pred.train0.5,
+                                    gbm = Train.pred0.5.boost,
+                                    HOME_WIN = as.numeric(train$HOME_WIN)-1)
+            
+            
+            model.stack = caret::train(HOME_WIN~., data=(dataStack %>% na.omit() ), method = "glm")
+            
+            predictionsTest = data.frame(reg = Log.pred.test0.5, rf = predTest.rf,ann = Ann.pred.test0.5, gbm = Test.pred0.5.boost, HOME_WIN = as.numeric(test$HOME_WIN)-1)
+            
+            
+            predTest.stack = predict(model.stack, newdata = predictionsTest,"prob")
+            predTrain.stack = predict(model.stack, newdata = dataStack,type = "prob")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library
+library(readxl)
+winner <- read_excel("D:/R/KURSACH/RABOTAEM/NBA/WINNER_with_date.xlsx")
+winner$ID = c(1:nrow(winner))
+winner$GDate = as.Date(winner$GDate)
+winner$code = paste(winner$Away,"vs",winner$Home,sep = "-")
+winner= winner %>% na.omit()
+winner$HOME_WIN = as.factor(winner$HOME_WIN)
+winner$ALastGameAgo = as.numeric(winner$ALastGameAgo)
+winner$HLastGameAgo = as.numeric(winner$HLastGameAgo)
+winner=winner %>% mutate_if(is.character, as.factor)
+winner = winner %>% select(-GDate)
+```
+
+```{r}
+l = 100
+
+train = winner[1:(nrow(winner)-l),1:length(winner)]
+test = winner[(nrow(winner)-l+1):nrow(winner),1:length(winner)]
+rm(l)
+```
+
+```{r}
+train = train %>% select(-ID,-code)
+test = test %>% select(-ID,-code)
+
+
+train1=train
+test1=test
+        
+        train1$HOME_WIN = as.numeric(train1$HOME_WIN) - 1
+        test1$HOME_WIN = as.numeric(test1$HOME_WIN) - 1
+        
+        
+        
+        train1 = fastDummies::dummy_cols(train1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        test1 = fastDummies::dummy_cols(test1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        nn=neuralnet(HOME_WIN~.,data=(train1 %>% na.omit()) , hidden=3,act.fct = "logistic",
+                     linear.output = FALSE)
+        predTrain.nn = predict(nn,train1 %>% na.omit(),type = "response")
+        predTest.nn = predict(nn, test1 %>% na.omit(),type = "response")
+        
+        Ann.pred.train0.5 = ifelse(predTrain.nn > 0.5,1,0)
+        Ann.pred.test0.5 = ifelse(predTest.nn > 0.5,1,0)
+
+        
+        
+        Ann.pred.train0.5 = as.vector(Ann.pred.train0.5)
+        Ann.pred.test0.5 = as.vector(Ann.pred.test0.5)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        accuracyTrain.ann = (table(Ann.pred.train0.5,train$HOME_WIN)[2,2] + table(Ann.pred.train0.5,train$HOME_WIN)[1,1])/length(Ann.pred.train0.5)
+        
+        accuracyTest.ann = (table(Ann.pred.test0.5,test$HOME_WIN)[2,2] + table(Ann.pred.test0.5,test$HOME_WIN)[1,1])/length(Ann.pred.test0.5)
+        
+       
+        
+        Ann.profit = case_when(
+            (Ann.pred.test0.5 == test$HOME_WIN) & (Ann.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Ann.pred.test0.5 == test$HOME_WIN) &(Ann.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Ann.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        profit = sum(Ann.profit)
+        
+        ann = c("ANN",Ann.pred.train0.5,Ann.pred.test0.5,profit)
+```
+
+
+
+
+        library(fastDummies)
+        
+        train$HOME_WIN = as.numeric(train$HOME_WIN) - 1
+        test$HOME_WIN = as.numeric(test$HOME_WIN) - 1
+        
+        
+        
+        train1 = fastDummies::dummy_cols(train,remove_selected_columns = T,remove_first_dummy = TRUE)
+        test1 = fastDummies::dummy_cols(test,remove_selected_columns = T,remove_first_dummy = TRUE)
+        nn=neuralnet(HOME_WIN~.,data=(train1 %>% na.omit()) , hidden=3,act.fct = "logistic",
+                     linear.output = FALSE)
+        predTrain.nn = predict(nn,train1 %>% na.omit())
+        predTest.nn = predict(nn, test1 %>% na.omit())
+        
+        Ann.pred.train0.5 = ifelse(predTrain.nn > 0.5,1,0)
+        Ann.pred.test0.5 = ifelse(predTest.nn > 0.5,1,0)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        
+        accuracyTrain.ann = confusionMatrix(Ann.pred.train0.5, train$HOME_WIN, positive = "1")$overall["Accuracy"]
+        accuracyTest.ann = confusionMatrix(Ann.pred.test0.5, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+        
+        Ann.profit = case_when(
+            (Ann.pred.test0.5 == test$HOME_WIN) & (Ann.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Ann.pred.test0.5 == test$HOME_WIN) &(Ann.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Ann.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        profit = sum(Ann.profit)
+        
+        ann = c("ANN",Ann.pred.train0.5,Ann.pred.test0.5,profit)
