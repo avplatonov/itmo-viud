@@ -1,4 +1,6 @@
 beautifulsoup4==4.9.3
+boto3==1.16.35
+botocore==1.19.35
 bs4==0.0.1
 certifi==2020.6.20
 chardet==3.0.4
@@ -7,13 +9,16 @@ iso-639==0.4.5
 iso3166==1.0.1
 iso8601==0.1.13
 isodate==0.6.0
+jmespath==0.10.0
 m3u8==0.7.1
 numpy==1.19.4
 opencv-python==4.4.0.46
 pycryptodome==3.9.9
 pymongo==3.11.0
 PySocks==1.7.1
+python-dateutil==2.8.1
 requests==2.24.0
+s3transfer==0.3.3
 six==1.15.0
 soupsieve==2.0.1
 streamlink==1.7.0

@@ -6,6 +6,7 @@ import streamlink
 import subprocess
 import ssl
 from datetime import datetime, timedelta
+from upload import upload_file_to_bucket
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -74,12 +75,15 @@ def dl_stream(url, filename, chunks):
             videoName = filename + '_' + str(cur_time_stamp) + '.ts'
             name =  "/streams" + videoName
             filenames.append(name)
-            file = open(DATA_PATH + name, 'ab+')
+            filepath = DATA_PATH + name
+            file = open(filepath, 'ab+')
             with urllib.request.urlopen(stream_segment.uri) as response:
                 html = response.read()
                 file.write(html)
+
+            upload_file_to_bucket(filepath)
             pre_time_stamp = cur_time_stamp
-            cutVideoIntoPictures(videoName, cur_time_stamp)
+            #cutVideoIntoPictures(videoName, cur_time_stamp)
     return filenames
 
 # do this before running
