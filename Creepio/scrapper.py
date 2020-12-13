@@ -10,7 +10,7 @@ from upload import upload_file_to_bucket
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
-DATA_PATH = "./data"
+DATA_PATH = "/home/core/itmo-viud/Creepio/data"
 
 
 def writeToCsv(timestamp, pic):
@@ -67,6 +67,7 @@ def dl_stream(url, filename, chunks):
     for i in range(chunks + 1):
         stream_segment = get_stream(url)
         cur_time_stamp = stream_segment.program_date_time.strftime("%Y.%m.%d-%H.%M.%S.%f")
+        cur_date = stream_segment.program_date_time.strftime("%Y.%m.%d")
 
         if pre_time_stamp == cur_time_stamp:
             pass
@@ -81,7 +82,7 @@ def dl_stream(url, filename, chunks):
                 html = response.read()
                 file.write(html)
 
-            upload_file_to_bucket(filepath)
+            upload_file_to_bucket(cur_date, filepath)
             pre_time_stamp = cur_time_stamp
             #cutVideoIntoPictures(videoName, cur_time_stamp)
     return filenames

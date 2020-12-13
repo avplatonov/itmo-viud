@@ -18,7 +18,7 @@ url = "https://www.geocam.ru/in/st-petersburg/"
 camera_data = getAllCameras(url)
 for camera in camera_data:
     try:
-        files = dl_stream(camera["video_link"], "/live", 5)
+        files = dl_stream(camera["video_link"], "/live", 2)
         camera["files"] = files
         collection.insert_one(camera)
     except:
