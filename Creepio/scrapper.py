@@ -29,7 +29,7 @@ def addSecs(tm, secs):
 #a = addSecs("2020.11.04-04.31.26.790224", 0.000300)
 
 
-def cutVideoIntoPictures(fileName, time, cur_date):
+def cutVideoIntoPictures(fileName, time, cur_date, filenames):
     vidcap = cv2.VideoCapture(fileName)
     success,image = vidcap.read()
     count = 0
@@ -39,9 +39,12 @@ def cutVideoIntoPictures(fileName, time, cur_date):
         # save frame as JPEG file
         # frameTime = addSecs(time, count / fps)
         # frameName = "data/" + "%s.frame_%d.jpg" % (fileName, count)
-        frameName = fileName + "%s.frame_%d.jpg" % (fileName, count)
+        frameName = "%s.frame_%d.jpg" % (fileName, count)
         cv2.imwrite(frameName, image)
         upload_file_to_bucket(cur_date, frameName)
+        file_dir, file_name = os.path.split(file_path)
+        save_name = cur_date + '/' + file_name
+        filenames.append(save_name)
         count += frames_to_dop
         cap.set(cv2.CAP_PROP_POS_FRAMES, count-1)
         success,image = vidcap.read()
@@ -79,7 +82,7 @@ def dl_stream(url, filename, chunks):
             print(cur_time_stamp)
             videoName = filename + '_' + str(cur_time_stamp) + '.ts'
             name =  "/streams" + videoName
-            filenames.append(name)
+            
             filepath = DATA_PATH + name
             file = open(filepath, 'ab+')
             # Build request with UA to avoid block
@@ -95,7 +98,7 @@ def dl_stream(url, filename, chunks):
                 file.write(html)
 
             # upload_file_to_bucket(cur_date, filepath)
-            cutVideoIntoPictures(filepath, cur_time_stamp, cur_date)
+            cutVideoIntoPictures(filepath, cur_time_stamp, cur_date, filenames)
             pre_time_stamp = cur_time_stamp
     return filenames
 
