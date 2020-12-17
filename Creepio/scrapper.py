@@ -12,6 +12,7 @@ from upload import upload_file_to_bucket
 ssl._create_default_https_context = ssl._create_unverified_context
 DATA_PATH = "/home/core/itmo-viud/Creepio/data"
 
+frames_to_dop = 30
 
 def writeToCsv(timestamp, pic):
     with open('scrapped_pictures.csv', 'a', newline='') as csvfile:
@@ -28,20 +29,23 @@ def addSecs(tm, secs):
 #a = addSecs("2020.11.04-04.31.26.790224", 0.000300)
 
 
-def cutVideoIntoPictures(fileName, time):
-    vidcap = cv2.VideoCapture(DATA_PATH + "/streams" + fileName)
+def cutVideoIntoPictures(fileName, time, cur_date):
+    vidcap = cv2.VideoCapture(fileName)
     success,image = vidcap.read()
     count = 0
     fps = vidcap.get(cv2.CAP_PROP_FPS)
     # print("Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}".format(fps))
     while success:
         # save frame as JPEG file
-        frameTime = addSecs(time, count / fps)
-        frameName = "data/" + "%s.frame_%d.jpg" % (fileName, count)
+        # frameTime = addSecs(time, count / fps)
+        # frameName = "data/" + "%s.frame_%d.jpg" % (fileName, count)
+        frameName = fileName + "%s.frame_%d.jpg" % (fileName, count)
         cv2.imwrite(frameName, image)
+        upload_file_to_bucket(cur_date, frameName)
+        count += frames_to_dop
+        cap.set(cv2.CAP_PROP_POS_FRAMES, count-1)
         success,image = vidcap.read()
-        count += 1
-        writeToCsv(frameName, frameTime)
+        # writeToCsv(frameName, frameTime)
 
 #cutVideoIntoPictures('test_stream.ts', '2020.11.03-22.58.23.000000')
 
@@ -78,13 +82,21 @@ def dl_stream(url, filename, chunks):
             filenames.append(name)
             filepath = DATA_PATH + name
             file = open(filepath, 'ab+')
-            with urllib.request.urlopen(stream_segment.uri) as response:
+            # Build request with UA to avoid block
+            req = urllib.request.Request(
+                stream_segment.uri, 
+                data=None, 
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+                }
+            )
+            with urllib.request.urlopen(req) as response:
                 html = response.read()
                 file.write(html)
 
-            upload_file_to_bucket(cur_date, filepath)
+            # upload_file_to_bucket(cur_date, filepath)
+            cutVideoIntoPictures(filepath, cur_time_stamp, cur_date)
             pre_time_stamp = cur_time_stamp
-            #cutVideoIntoPictures(videoName, cur_time_stamp)
     return filenames
 
 # do this before running
