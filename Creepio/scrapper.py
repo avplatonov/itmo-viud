@@ -36,16 +36,14 @@ def cutVideoIntoPictures(fileName, time, cur_date, filenames):
     fps = vidcap.get(cv2.CAP_PROP_FPS)
     # print("Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}".format(fps))
     while success:
-        # save frame as JPEG file
-        # frameTime = addSecs(time, count / fps)
-        # frameName = "data/" + "%s.frame_%d.jpg" % (fileName, count)
         frameName = "%s.frame_%d.jpg" % (fileName, count)
         cv2.imwrite(frameName, image)
         upload_file_to_bucket(cur_date, frameName)
         file_dir, mongo_name = os.path.split(frameName)
-        file_dir, file_name = os.path.split(DATA_PATH + fileName)
+
         save_name = cur_date + '/' + mongo_name
         filenames.append(save_name)
+
         count += frames_to_dop
         vidcap.set(cv2.CAP_PROP_POS_FRAMES, count)
         success, image = vidcap.read()
@@ -99,7 +97,8 @@ def dl_stream(url, filename, chunks):
             with urllib.request.urlopen(req) as response:
                 html = response.read()
                 file.write(html)
-	
+
+            file.close()
             # upload_file_to_bucket(cur_date, filepath)
             cutVideoIntoPictures(filepath, cur_time_stamp, cur_date, filenames)
             pre_time_stamp = cur_time_stamp
