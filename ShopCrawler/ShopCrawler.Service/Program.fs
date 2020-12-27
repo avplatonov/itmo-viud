@@ -9,8 +9,6 @@ open Microsoft.Extensions.DependencyInjection
 open MongoDB.Driver
 open Hangfire.Mongo
 open Hangfire
-open Hangfire.AspNetCore
-open MongoDB.Driver
 open ShopCrawler.Ebay.Types
 open ShopCrawler.Service
 open ShopCrawler.Service.Types
