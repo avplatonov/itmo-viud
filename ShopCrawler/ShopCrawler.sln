@@ -15,6 +15,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Common", "ShopC
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Service", "ShopCrawler.Service\ShopCrawler.Service.fsproj", "{1D185BFD-23DD-481F-AF21-31DE5230443F}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopwCrawler.Visual", "ShopwCrawler.Visual\ShopwCrawler.Visual.fsproj", "{9F63CFF4-A0C1-4CD0-B64B-BE66B606A932}"
+EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Analyze", "ShopCrawler.Analyze\ShopCrawler.Analyze.fsproj", "{ED5F029F-2419-4DAC-993B-9B75C064912D}"
 EndProject
 Global
@@ -45,9 +47,7 @@ Global
 		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{ED5F029F-2419-4DAC-993B-9B75C064912D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{ED5F029F-2419-4DAC-993B-9B75C064912D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{ED5F029F-2419-4DAC-993B-9B75C064912D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{ED5F029F-2419-4DAC-993B-9B75C064912D}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
+		{9F63CFF4-A0C1-4CD0-B64B-BE66B606A932}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F63CFF4-A0C1-4CD0-B64B-BE66B606A932}.Debug|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -22,7 +22,7 @@ let client         = MongoClient(ConnectionString)
 let db             = client.GetDatabase(DbName)
 let testCollection = db.GetCollection<Item>(CollectionName)
 
-let iphone11Price =
+let iphone11Price () =
     let iphone11 = testCollection.Find(fun i -> i.title.ToLower().Contains("iphone 11") && i.title.ToLower().Contains("64")).ToEnumerable()
                    |> Seq.groupBy (fun i -> i.timestamp)
                    |> Seq.map (fun (k, v) -> k |> float |> DateTime.UnixEpoch.AddSeconds, v |> Seq.averageBy (fun i -> i.price))
@@ -32,14 +32,15 @@ let iphone11Price =
     |> Chart.WithTitle "Price IPhone 11 by timestamp"
     |> Chart.WithHeight 800
     
-let iphone11LocationPrice =
-        let iphone11L = testCollection.Find(fun i -> i.title.ToLower().Contains("iphone 11") && i.title.ToLower().Contains("64")).ToEnumerable()
-                       |> Seq.distinctBy(fun i -> i.itemId) 
+let iphone11LocationPrice () =
+        let items = testCollection.Find(fun i -> i.title.ToLower().Contains("iphone 11") && i.title.ToLower().Contains("64")).ToEnumerable()
+                       |> Seq.distinctBy(fun i -> i.itemId)
+                       |> List.ofSeq
+        let iphone11L = items
                        |> Seq.groupBy (fun i -> i.location)
                        |> Seq.map (fun (k, v) -> k, v |> Seq.length )
                        
-        let iphone11P = testCollection.Find(fun i -> i.title.ToLower().Contains("iphone 11") && i.title.ToLower().Contains("64")).ToEnumerable()
-                       |> Seq.distinctBy(fun i -> i.itemId) 
+        let iphone11P = items 
                        |> Seq.groupBy (fun i -> i.location)
                        |> Seq.map (fun (k, v) -> k, v |> Seq.averageBy (fun i -> i.price) |> int)
                        
@@ -48,7 +49,7 @@ let iphone11LocationPrice =
         |> Chart.WithTitle "Count IPhone 11 by location and avg price"
         |> Chart.WithHeight 800
         
-let iphone11Location =
+let iphone11Location () =
         let iphone11 = testCollection.Find(fun i -> i.title.ToLower().Contains("iphone 11") && i.title.ToLower().Contains("64")).ToEnumerable()
                        |> Seq.distinctBy(fun i -> i.itemId) 
                        |> Seq.groupBy (fun i -> i.location)
@@ -60,6 +61,6 @@ let iphone11Location =
   
 [<EntryPoint>]
 let main argv =
-    iphone11LocationPrice |> Chart.Show
+    iphone11LocationPrice () |> Chart.Show
     0
 

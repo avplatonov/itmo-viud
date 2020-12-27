@@ -6,19 +6,20 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Program.fs" />
+        <Compile Include="Program.fs"/>
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="MongoDB.Driver" Version="2.12.0-beta1" />
-      <PackageReference Include="MongoDB.FSharp" Version="0.1.0" />
-      <PackageReference Include="Plotly" Version="1.5.1" />
-      <PackageReference Include="XPlot.GoogleCharts" Version="3.0.1" />
+        <PackageReference Include="mongocsharpdriver" Version="2.11.5"/>
+        <PackageReference Include="MongoDB.Driver" Version="2.11.5"/>
+        <PackageReference Include="MongoDB.FSharp" Version="0.1.0"/>
+        <PackageReference Include="XPlot.GoogleCharts" Version="3.0.1"/>
+        <PackageReference Include="XPlot.Plotly" Version="3.0.1"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ShopCrawler.Common\ShopCrawler.Common.fsproj" />
-      <ProjectReference Include="..\ShopCrawler.Ebay\ShopCrawler.Ebay.fsproj" />
+        <ProjectReference Include="..\ShopCrawler.Common\ShopCrawler.Common.fsproj"/>
+        <ProjectReference Include="..\ShopCrawler.Ebay\ShopCrawler.Ebay.fsproj"/>
     </ItemGroup>
 
 </Project>
