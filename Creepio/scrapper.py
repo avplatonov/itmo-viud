@@ -5,6 +5,7 @@ import m3u8
 import streamlink
 import subprocess
 import ssl
+import os
 from datetime import datetime, timedelta
 from upload import upload_file_to_bucket
 
@@ -12,7 +13,7 @@ from upload import upload_file_to_bucket
 ssl._create_default_https_context = ssl._create_unverified_context
 DATA_PATH = "/home/core/itmo-viud/Creepio/data"
 
-frames_to_dop = 30
+frames_to_dop = 20
 
 def writeToCsv(timestamp, pic):
     with open('scrapped_pictures.csv', 'a', newline='') as csvfile:
@@ -20,7 +21,6 @@ def writeToCsv(timestamp, pic):
                                 quotechar=',', quoting=csv.QUOTE_MINIMAL)
         csvwriter.writerow([timestamp, pic])
     
-#writeToCsv("test1", "test2")
 
 def addSecs(tm, secs):
     date_time_obj = datetime.strptime(tm, "%Y.%m.%d-%H.%M.%S.%f")
@@ -42,12 +42,16 @@ def cutVideoIntoPictures(fileName, time, cur_date, filenames):
         frameName = "%s.frame_%d.jpg" % (fileName, count)
         cv2.imwrite(frameName, image)
         upload_file_to_bucket(cur_date, frameName)
-        file_dir, file_name = os.path.split(file_path)
-        save_name = cur_date + '/' + file_name
+        file_dir, mongo_name = os.path.split(frameName)
+        file_dir, file_name = os.path.split(DATA_PATH + fileName)
+        save_name = cur_date + '/' + mongo_name
         filenames.append(save_name)
         count += frames_to_dop
-        cap.set(cv2.CAP_PROP_POS_FRAMES, count-1)
-        success,image = vidcap.read()
+        vidcap.set(cv2.CAP_PROP_POS_FRAMES, count)
+        success, image = vidcap.read()
+        if count + 1 == vidcap.get(cv2.CAP_PROP_POS_FRAMES):
+            break
+        # print(vidcap.get(cv2.CAP_PROP_POS_FRAMES))
         # writeToCsv(frameName, frameTime)
 
 #cutVideoIntoPictures('test_stream.ts', '2020.11.03-22.58.23.000000')
@@ -79,7 +83,6 @@ def dl_stream(url, filename, chunks):
         if pre_time_stamp == cur_time_stamp:
             pass
         else:
-            print(cur_time_stamp)
             videoName = filename + '_' + str(cur_time_stamp) + '.ts'
             name =  "/streams" + videoName
             
@@ -87,7 +90,7 @@ def dl_stream(url, filename, chunks):
             file = open(filepath, 'ab+')
             # Build request with UA to avoid block
             req = urllib.request.Request(
-                stream_segment.uri, 
+                url[:-9] + stream_segment.uri, 
                 data=None, 
                 headers={
                     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
@@ -96,7 +99,7 @@ def dl_stream(url, filename, chunks):
             with urllib.request.urlopen(req) as response:
                 html = response.read()
                 file.write(html)
-
+	
             # upload_file_to_bucket(cur_date, filepath)
             cutVideoIntoPictures(filepath, cur_time_stamp, cur_date, filenames)
             pre_time_stamp = cur_time_stamp
