@@ -13,8 +13,8 @@ def do_session():
     aws_client = session.client('s3',
                         region_name='fra1',
                         endpoint_url='https://creepio.fra1.digitaloceanspaces.com',
-                        aws_access_key_id='RYVDSFILC7OZVLJHSD',
-                        aws_secret_access_key='adsf10du8hfasdfronoBdoPJVdTkadfZahjl2uy342Qs7gs2pOjqFeGnw')
+                        aws_access_key_id='TQI6J75API4J6CBXD67L',
+                        aws_secret_access_key='+TG+ONn5UfNg70WfEg/YDUTq0wxqrN0aC4I/lX+SRas')
     return aws_client
 
                                           

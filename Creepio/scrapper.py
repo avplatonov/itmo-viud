@@ -47,7 +47,7 @@ def cutVideoIntoPictures(fileName, time, cur_date, filenames):
         count += frames_to_dop
         vidcap.set(cv2.CAP_PROP_POS_FRAMES, count)
         success, image = vidcap.read()
-        if count + 1 == vidcap.get(cv2.CAP_PROP_POS_FRAMES):
+        if count + 1 != vidcap.get(cv2.CAP_PROP_POS_FRAMES):
             break
         # print(vidcap.get(cv2.CAP_PROP_POS_FRAMES))
         # writeToCsv(frameName, frameTime)

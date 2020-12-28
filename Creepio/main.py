@@ -2,12 +2,13 @@ from pymongo import MongoClient
 from scrapper import dl_stream
 from robot import getAllCameras
 import bson
+import datetime
 
 DB_NAME = "creepio"
 MONGO_PATH = "mongodb://localhost:27017/"
 
 try: 
-    client = MongoClient('mongodb://creepio:Chinese@localhost')
+    client = MongoClient('mongodb://creep:FuckTheChinese@localhost')
     if client is None:
         # no connection, exit early
         print("faield to connect")
@@ -52,8 +53,9 @@ camera_data = [{"video_link":"http://www.cactus.tv:8080/cam42/tracks-v1/mono.m3u
 
 for camera in camera_data:
     try:
-        files = dl_stream(camera["video_link"], "/live", 10)
+        files = dl_stream(camera["video_link"], "/live" + camera["video_link"].split("/")[3], 5)
         camera["files"] = files
+        camera["timestamp"] = datetime.datetime.now()
         collection.insert_one(camera)
     except:
         pass;
