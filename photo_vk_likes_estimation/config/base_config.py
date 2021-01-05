@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List
 
 from config.enums.environment import Environment
@@ -8,6 +9,9 @@ class BaseConfig:
     START_SCREEN_NAMES: List[str]
     MONGO_DATABASE: str
     MONGO_URI: str
+
+    RUNTIME_WORKDIR = Path()
+    MODEL_DIR = RUNTIME_WORKDIR / "model_latest"
 
 
 class ProductionConfig(BaseConfig):

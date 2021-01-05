@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+          integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+            integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+            integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+            crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script type="text/javascript">
+        (function (m, e, t, r, i, k, a) {
+            m[i] = m[i] || function () {
+                (m[i].a = m[i].a || []).push(arguments)
+            };
+            m[i].l = 1 * new Date();
+            k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+        })
+        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+        ym(70864636, "init", {
+            clickmap: true,
+            trackLinks: true,
+            accurateTrackBounce: true
+        });
+    </script>
+    <noscript>
+        <div><img src="https://mc.yandex.ru/watch/70864636" style="position:absolute; left:-9999px;" alt=""/></div>
+    </noscript>
+
+    <title>Оценка фотографий</title>
+</head>
+<body>
+<div class="container mt-5">
+    <div class="row">
+        <div class="col">
+            <h2>Оценка фотографий</h2>
+            <h6>Много ли лайков наберёт фотография в паблике знакомств ВК?</h6>
+            <form action="/" method="post" class="form mt-4 d-flex" enctype="multipart/form-data">
+                <input type="file" accept="image/jpeg,image/png" class="flex-grow-1" name="file" id="dropzone-file">
+                <button type="submit" class="btn btn-primary" id="dropzone-submit" disabled>Отправить</button>
+            </form>
+            {% if result %}
+                <div class="d-flex mt-4">
+                    <img alt="Отправленное изображение" src="{{ result.image_dataurl }}"/>
+                    <div id="plot" class="w-100"></div>
+                </div>
+                <script>
+                    common = {
+                        y: [""],
+                        type: 'bar',
+                        textposition: 'inside',
+                        orientation: 'h',
+                    }
+
+                    Plotly.newPlot('plot', [{
+                        x: [{{ result.lo }}],
+                        name: "lo",
+                        marker: {
+                            color: '#FFB6B3',
+                        },
+                        ...common
+                    }, {
+                        x: [{{ result.mid }}],
+                        name: "mid",
+                        marker: {
+                            color: '#F1EDD5',
+                        },
+                        ...common
+                    }, {
+                        x: [{{ result.hi }}],
+                        name: "hi",
+                        marker: {
+                            color: '#BDE7BD',
+                        },
+                        ...common
+                    }
+                    ], {
+                        margin: {b: 40, t: 40},
+                        barmode: 'stack',
+                    });
+                </script>
+            {% endif %}
+            <hr class="mt-4"/>
+            <div class="text-muted">
+                <p>PS. К оценкам модели стоит относиться лишь как к предположениям, имеющим низкую степень достоверности
+                    и точности.</p>
+                <p>Анализ собранных для тренировки модели данных с соцсетей показал, что даже похожие фотографии часто
+                    показывают совершенно разные результаты по тем или иным (скорее всего, случайным) причинам.</p>
+                <p>Точность модели, несмотря на попытки её улучшить, никогда <b>не поднималась выше 55% верно
+                    определённых классов фотографий</b>.</p>
+                <p>PPS. Да, модель стабильно дискриминирует парней. Таковы данные, такова реальность 🤷‍♂️</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    jQuery("#dropzone-file").change(v => {
+        jQuery("#dropzone-submit").prop("disabled", v.target.value === "")
+    })
+</script>
+</body>
+</html>

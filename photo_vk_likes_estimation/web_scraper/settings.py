@@ -18,6 +18,8 @@ NEWSPIDER_MODULE = 'web_scraper.spiders'
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
+LOG_LEVEL = 'INFO'
+
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 # CONCURRENT_REQUESTS = 32
 
@@ -61,9 +63,9 @@ ROBOTSTXT_OBEY = False
 
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
+# ITEM_PIPELINES = {
 #    'pipelines.PhotoVKLikesEstimationPipeline': 300,
-#}
+# }
 
 ITEM_PIPELINES = {
     'web_scraper.item_middleware.mongodb_middleware.MongodbMiddleware': 800,
