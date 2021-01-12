@@ -1,0 +1,108 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(dplyr)
+library(gbm)
+library(caret)
+```
+
+
+```{r}
+library(readxl)
+winner <- read_excel("WINNER_with_date.xlsx")
+winner$ID = c(1:nrow(winner))
+winner$GDate = as.Date(winner$GDate)
+winner$code = paste(winner$Away,"vs",winner$Home,sep = "-")
+winner= winner %>% na.omit()
+winner$HOME_WIN = as.factor(winner$HOME_WIN)
+winner$ALastGameAgo = as.numeric(winner$ALastGameAgo)
+winner$HLastGameAgo = as.numeric(winner$HLastGameAgo)
+winner=winner %>% mutate_if(is.character, as.factor)
+
+winner=winner %>% select(-code)
+
+```
+
+```{r}
+dates = as.Date(unique(winner$GDate))
+```
+
+
+```{r}
+gbm_acc =c()
+gbm_profit=c()
+gbm_utility_profit = c()
+```
+
+
+```{r}
+a=0
+for (i in 30:length(dates)){
+  a=a+1
+  
+  test =  winner %>% filter(GDate == dates[i]) %>%  select (-GDate,-ID)
+  train = winner %>% filter(GDate < dates[i]) %>% select(-GDate,-ID)
+  
+  set.seed(1)
+  model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+  summary(model.boost)
+        
+  predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+  predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        
+        
+        
+  Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+  Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+        
+  accuracyTrain.boost = confusionMatrix(as.factor(Train.pred0.5.boost), as.factor(train$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+  accuracyTest.boost = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        
+        
+  Boost.profit = case_when(
+            (Test.pred0.5.boost == test$HOME_WIN) & (Test.pred0.5.boost == 1) ~ 100*test$HODD - 100,
+            (Test.pred0.5.boost == test$HOME_WIN) &(Test.pred0.5.boost == 0)  ~ 100*test$AODD - 100,
+            Test.pred0.5.boost != test$HOME_WIN ~ -100
+        )
+        
+        
+  ho = predTestProb.boost*(test$HODD-1)*100 - (1 - predTestProb.boost)*100
+  aw = (1 - predTestProb.boost)*(test$AODD - 1)*100 - (predTestProb.boost)*100 
+        
+        
+        
+  gbm.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        
+        
+        
+        
+        
+    gbm_acc = c(gbm_acc,accuracyTest.boost)
+    gbm_profit = c(gbm_profit,sum(Boost.profit))
+    gbm_utility_profit = c(gbm_utility_profit, sum(gbm.profit))
+    
+    print(a)
+}
+```
+
+
+

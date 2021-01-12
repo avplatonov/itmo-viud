@@ -1,0 +1,71 @@
+--- 
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(readxl)
+data <- read_excel("KURSACH/BetsML.xlsx")
+library(readr)
+library(dplyr)
+lich <- read_csv("KURSACH/Lichki_READY.csv")
+data = data %>% cbind(lich)
+```
+
+#А ЧТО ЖЕ МЫ БУДЕМ ВСЕ ТАКИ ПРЕДСКАЗЫВАТЬ?!
+
+
+
+
+```{r}
+library(dplyr)
+train = data[1:900,1:length(data)]
+test = data [901:nrow(data),1:length(data)]
+```
+
+```{r}
+no_bets = data %>% select(-"HODD", - "AODD", -"TotalOpen", -"TotalClose", -"ForaOpen", -"ForaClose", -"GDate" )
+train = no_bets[1:900,1:length(no_bets)]
+test = data [901:nrow(data),1:length(data)]
+```
+
+
+
+```{r}
+options(max.print=1000000)
+log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+summary(log.model)
+
+test$pred = predict(log.model, newdata = test, type = "response")
+test$pred0.5 <- ifelse(test$pred > 0.5,1,0)
+table(pred0.5, test$HOME_WIN)
+
+test$profit = case_when(
+  (test$pred0.5 == test$HOME_WIN) & (test$pred0.5 == 1) ~ 100*test$HODD - 100,
+  (test$pred0.5 == test$HOME_WIN) &(test$pred0.5 == 0)  ~ 100*test$AODD - 100,
+  test$pred0.5 != test$HOME_WIN ~ -100
+)
+
+sum(test$profit)
+
+
+```
+
+```{r}
+data$chudo = case_when((data$HODD < data$AODD)&(data$HOME_WIN==1)~1,
+                       (data$HODD > data$AODD)&(data$HOME_WIN!=1)~1,
+                       TRUE~0
+                       )
+```
+
+```{r}
+data$Total = data$
+```
+

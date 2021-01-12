@@ -1,0 +1,136 @@
+---
+title: "parsing"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+```{r}
+library(readxl)
+october <- read_excel("C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\october.xlsx")
+```
+```{r}
+
+acr <- read_excel("C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\acronym.xlsx")
+acr$acr=ifelse(acr$acr=="CHA","CHO",acr$acr)
+acr$acr=ifelse(acr$acr=="PHX","PHO",acr$acr)
+acr$acr=ifelse(acr$acr=="BKN","BRK",acr$acr)
+```
+
+```{r}
+library(dplyr)
+october= october %>% inner_join(acr)
+october$zer=0
+october$code = paste(october$code,october$zer,october$acr,sep="")
+october = october %>% select(-zer)
+list1=october$code
+
+write.csv(october %>% select(code),"C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\oct.csv")
+
+```
+
+
+```{r}
+november <- read_excel("C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\november.xlsx")
+november= november %>% inner_join(acr)
+november$zer=0
+november$code = paste(november$code,november$zer,november$acr,sep="")
+november = november %>% select(-zer)
+```
+
+```{r}
+library(readxl)
+FinalCodes <- read_excel("C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\FinalCodes.xlsx")
+FinalCodes$month=ifelse(FinalCodes$month>9,FinalCodes$month,paste("0",FinalCodes$month,sep=""))
+FinalCodes$day=ifelse(FinalCodes$day>9,FinalCodes$day,paste("0",FinalCodes$day,sep=""))
+write.csv(FinalCodes %>% select(code),"C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\oct.csv")
+
+FinalCodes= FinalCodes %>% inner_join(acr)
+FinalCodes = FinalCodes %>% select(-code)
+FinalCodes$zer= 0
+FinalCodes$code = paste(FinalCodes$year,FinalCodes$month,FinalCodes$day,FinalCodes$zer,FinalCodes$acr,sep="")
+
+write.csv(FinalCodes ,"C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\lichki.csv")
+```
+
+
+```{r}
+library(readr)
+X2020season <- read_csv("C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\2020season.csv")
+View(X2020season)
+```
+
+ LEGENDS
+
+```{r}
+library(dplyr)
+acr$acrh=acr$acr
+acr = acr %>% select(-acr)
+acrv= acr
+acrv$visitor = acr$home
+acrv = acrv %>% select(-home)
+acrv$acrv= acrv$acrh
+acrv=acrv %>% select(-acrh)
+
+
+
+library(readxl)
+FinalCodes <- read_excel("C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\FinalCodes.xlsx")
+FinalCodes$month=ifelse(FinalCodes$month>9,FinalCodes$month,paste("0",FinalCodes$month,sep=""))
+FinalCodes$day=ifelse(FinalCodes$day>9,FinalCodes$day,paste("0",FinalCodes$day,sep=""))
+write.csv(FinalCodes %>% select(code),"C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\oct.csv")
+
+FinalCodes= FinalCodes %>% inner_join(acr)
+FinalCodes= FinalCodes %>% inner_join(acrv)
+FinalCodes = FinalCodes %>% select(-code)
+FinalCodes$zer= 0
+FinalCodes$code = paste(FinalCodes$year,FinalCodes$month,FinalCodes$day,FinalCodes$zer,FinalCodes$acrh,sep="")
+
+write.csv(FinalCodes %>% select(code,acrv,acrh),"C:\\Users\\kocha\\OneDrive\\DATA\\YAYA\\rkurs\\legend.csv")
+```
+
+
+
+
+```{r}
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+```
+
+Поскольку различных данных примерно ОЧЕНЬ МНОГО, то для наглядности будем использовать данные по количеству очков home-visitor.
+
+```{r}
+
+print (paste('Mean points home', specify_decimal(mean(FinalCodes$pts_home),2)))
+print (paste('Mean points visitors', specify_decimal(mean(FinalCodes$pts_visitor),2)))
+
+print (paste('Median point home', median(FinalCodes$pts_home)))
+print (paste('Median point visitor', median(FinalCodes$pts_visitor)))
+
+print (paste('Mode point home', getmode(FinalCodes$pts_home)))
+print (paste('Mode point visitor', getmode(FinalCodes$pts_visitor)))
+
+```
+

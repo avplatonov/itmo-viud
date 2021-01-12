@@ -1,0 +1,3136 @@
+---
+title: "EEE"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+winner <- read_excel("WINNER.xlsx")
+winner$ALastGameAgo = as.numeric(winner$ALastGameAgo)
+winner$HLastGameAgo = as.numeric(winner$HLastGameAgo)
+winner$HOME_WIN = as.factor(winner$HOME_WIN)
+```
+
+```{r}
+winner <- as.data.frame(unclass(winner)) 
+```
+
+
+```{r}
+#winner = winner %>% select(Away, Home, HOME_WIN)
+```
+
+
+
+
+#ДЕЛИМ НА ТЕСТ
+```{r}
+l = 1
+
+train = winner[1:(nrow(winner)-l),1:length(winner)]
+test = winner[(nrow(winner)-l+1):nrow(winner),1:length(winner)]
+rm(l)
+```
+
+РЕГРЕССИЯ
+```{r}
+options(max.print=1000000)
+log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+summary(log.model)
+```
+
+
+```{r}
+Log.train = predict(log.model, newdata = train, type = "response",)
+Log.test = predict(log.model, newdata = test, type = "response")
+
+Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+
+
+table(Log.pred.test0.5, test$HOME_WIN)
+
+Log.profit = case_when(
+  (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+  (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+  Log.pred.test0.5 != test$HOME_WIN ~ -100
+)
+
+sum(Log.profit)
+```
+
+```{r}
+library(caret)
+accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                      positive = "1")$overall["Accuracy"]
+accuracyTest.log
+```
+
+#НАЧИНАЕМ МОДЕЛЬКИ
+
+
+
+
+
+```{r}
+library(gbm)
+set.seed(1)
+model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+summary(model.boost)
+
+predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+
+
+
+Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+
+
+
+accuracyTest.boost = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                      positive = "1")$overall["Accuracy"]
+accuracyTest.boost
+```
+
+
+
+
+```{r}
+Boost.profit = case_when(
+  (Test.pred0.5.boost == test$HOME_WIN) & (Test.pred0.5.boost == 1) ~ 100*test$HODD - 100,
+  (Test.pred0.5.boost == test$HOME_WIN) &(Test.pred0.5.boost == 0)  ~ 100*test$AODD - 100,
+  Test.pred0.5.boost != test$HOME_WIN ~ -100
+)
+
+sum(Boost.profit)
+```
+
+
+
+#ЦИКЛ (ВЫБИРАЕМ ГДЕ ОБРЕЗЗАТЬ БУСТИНГ)
+```{r}
+library(gbm)
+set.seed(1)
+model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=10000, interaction.depth=5)
+summary(model.boost)
+a_train = c()
+a_test = c()
+for (i in 1:10 * 1000) {
+    predTrainProb.boost = predict(model.boost,
+                                  train,
+                                  n.trees = i,
+                                  type = "response")
+    predTestProb.boost = predict(model.boost,
+                                 test,
+                                 n.trees = i,
+                                 type = "response")
+    
+    predTrain.boost = as.factor(ifelse(predTrainProb.boost > 0.5, 1, 0))
+    predTest.boost = as.factor(ifelse(predTestProb.boost > 0.5, 1, 0))
+    
+    accuracyTrain.boost = confusionMatrix(predTrain.boost, train$HOME_WIN, 
+                                          positive = "1")$overall["Accuracy"]
+    accuracyTest.boost = confusionMatrix(predTest.boost, test$HOME_WIN, 
+                                         positive = "1")$overall["Accuracy"]
+    a_train = c(a_train, accuracyTrain.boost)
+    a_test = c(a_test, accuracyTest.boost)
+}
+a_test
+```
+
+
+
+
+
+
+  
+#ДЭРЭВЬЯ
+
+```{r}
+library(randomForest)
+library(caret)
+
+set.seed(1)
+model.rf=randomForest(HOME_WIN~.,data=train, mtry=5, ntree = 1000,na.action=na.roughfix)
+predTrain.rf = predict(model.rf, train)
+predTest.rf = predict(model.rf, test)
+
+accuracyTrain.rf = confusionMatrix(predTrain.rf, train$HOME_WIN, positive = "1")$overall["Accuracy"]
+accuracyTest.rf = confusionMatrix(predTest.rf, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+accuracyTrain.rf
+accuracyTest.rf
+
+```
+
+```{r}
+importance(model.rf)
+varImpPlot(model.rf)
+```
+
+
+
+#ANN
+```{r}
+install.packages("neuralnet")
+```
+
+```{r}
+library(fastDummies)
+
+train$HOME_WIN = as.numeric(train$HOME_WIN) - 1
+test$HOME_WIN = as.numeric(test$HOME_WIN) - 1
+
+
+
+train1 = fastDummies::dummy_cols(train,remove_selected_columns = T,remove_first_dummy = TRUE)
+test1 = fastDummies::dummy_cols(test,remove_selected_columns = T,remove_first_dummy = TRUE)
+```
+
+```{r}
+library("neuralnet")
+library("dplyr")
+library("ISLR")
+
+
+names(train1)[274] = "West" 
+nn=neuralnet(HOME_WIN~.,data=(train1[,1:273] %>% na.omit()) , hidden=3,act.fct = "logistic",
+                linear.output = FALSE)
+
+
+
+
+```
+
+```{r}
+c=colnames(test)
+```
+
+
+
+#В фактор HOME_WIN
+```{r}
+train1=train1 %>% na.omit()
+library(caret)
+control <- caret::rfeControl(functions=rfFuncs, method="cv", number=10)
+
+results <- rfe(x = dplyr::select(train1, -HOME_WIN),
+y= train1$HOME_WIN,
+sizes=c(1:5),
+rfeControl=control, classProbs = TRUE)
+
+plot(results, type=c("g", "o"))
+
+predictors(results)
+
+summary(results$fit)
+```
+
+
+
+
+#СТЭКИНГ
+```{r}
+dataStack =  data.frame(reg = Log.pred.train0.5, 
+                        gbm = Train.pred0.5.boost, 
+                        tree = predTrain.rf,
+                        HOME_WIN = train$HOME_WIN)
+```
+
+
+```{r}
+library(caret)
+model.stack = caret::train(HOME_WIN~., data=(dataStack), method = "ctree", na.action = na.pass)
+
+predictionsTest = data.frame(reg = Log.pred.test0.5, gbm = Test.pred0.5.boost, tree = predTest.rf, HOME_WIN = test$HOME_WIN)
+
+
+
+predTrain.stack = predict(model.stack, newdata = dataStack,na.action = na.pass )
+predTest.stack = predict(model.stack, newdata = predictionsTest,na.action = na.pass)
+
+
+accuracyTrain.ensemble = confusionMatrix(predTrain.stack, train$HOME_WIN, positive = "1")$overall["Accuracy"]
+accuracyTest.ensemble = confusionMatrix(predTest.stack, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+accuracyTrain.rf
+accuracyTest.rf
+
+```
+
+
+#РАЗНИЦА В ЭККУРАСИ 
+
+```{r}
+library(readxl)
+library(dplyr)
+library(gbm)
+library(randomForest)
+library(fastDummies)
+library(neuralnet)
+library(caret)
+library(pROC)
+
+library(readxl)
+winner <- read_excel("WINNER_with_date.xlsx")
+winner$ID = c(1:nrow(winner))
+winner$GDate = as.Date(winner$GDate)
+winner$code = paste(winner$Away,"vs",winner$Home,sep = "-")
+winner= winner %>% na.omit()
+winner$HOME_WIN = as.factor(winner$HOME_WIN)
+winner$ALastGameAgo = as.numeric(winner$ALastGameAgo)
+winner$HLastGameAgo = as.numeric(winner$HLastGameAgo)
+winner=winner %>% mutate_if(is.character, as.factor)
+```
+
+```{r}
+logistic_acc = c()
+logistic_profit = c()
+gbm_acc = c()
+gbm_profit = c()
+rf_acc = c()
+rf_profit = c()
+ann_acc = c()
+ann_profit = c()
+iteration = c()
+for (i in 1:335){
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        
+        log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response",)
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        
+        table(Log.pred.test0.5, test$HOME_WIN)
+        
+        Log.profit = case_when(
+            (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Log.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        profit = sum(Log.profit)
+        
+        accuracyTrain.log = confusionMatrix(as.factor(Log.pred.train0.5), as.factor(train$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+        
+        accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+        logist = c("Logistic",accuracyTrain.log,accuracyTest.log,profit)
+        print(accuracyTest.log)
+        logistic_acc = c(logistic_acc,accuracyTest.log)
+        logistic_profit = c(logistic_profit,profit)
+        
+        
+        
+        
+        
+        
+        
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+        summary(model.boost)
+        
+        predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        
+        
+        
+        Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+        Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+        
+        accuracyTrain.boost = confusionMatrix(as.factor(Train.pred0.5.boost), as.factor(train$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        accuracyTest.boost = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        Boost.profit = case_when(
+            (Test.pred0.5.boost == test$HOME_WIN) & (Test.pred0.5.boost == 1) ~ 100*test$HODD - 100,
+            (Test.pred0.5.boost == test$HOME_WIN) &(Test.pred0.5.boost == 0)  ~ 100*test$AODD - 100,
+            Test.pred0.5.boost != test$HOME_WIN ~ -100
+        )
+        
+        profit=sum(Boost.profit)
+        gbm_acc = c(gbm_acc,accuracyTest.boost)
+        gbm_profit = c(gbm_profit,profit)
+      }
+
+for (i in 1:355){
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)        
+        
+        model.rf=randomForest(HOME_WIN~.,data=train, mtry=5, ntree = 1000,na.action=na.roughfix)
+        predTrain.rf = predict(model.rf, train)
+        predTest.rf = predict(model.rf, test)
+        
+        accuracyTrain.rf = confusionMatrix(predTrain.rf, train$HOME_WIN, positive = "1")$overall["Accuracy"]
+        accuracyTest.rf = confusionMatrix(predTest.rf, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+        
+        
+        
+        RF.profit = case_when(
+            (predTest.rf == test$HOME_WIN) & (predTest.rf == 1) ~ 100*test$HODD - 100,
+            (predTest.rf == test$HOME_WIN) &(predTest.rf == 0)  ~ 100*test$AODD - 100,
+            predTest.rf != test$HOME_WIN ~ -100)
+        
+        profit = sum(RF.profit)
+        
+        rf_acc = c(rf_acc, accuracyTest.rf)
+        
+        rf_profit=c(rf_profit, profit)
+}
+
+      
+for (i in 1:355){
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)             
+        
+        set.seed(1)
+        train1=train
+        test1=test
+        
+        train1$HOME_WIN = as.numeric(train1$HOME_WIN) - 1
+        test1$HOME_WIN = as.numeric(test1$HOME_WIN) - 1
+        
+        print(i)
+        
+        train1 = fastDummies::dummy_cols(train1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        test1 = fastDummies::dummy_cols(test1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        nn=neuralnet(HOME_WIN~.,data=(train1 %>% na.omit()) , hidden=3,act.fct = "logistic",
+                     linear.output = FALSE)
+        predTrain.nn = predict(nn,train1 %>% na.omit(),type = "response")
+        predTest.nn = predict(nn, test1 %>% na.omit(),type = "response")
+        
+        Ann.pred.train0.5 = ifelse(predTrain.nn > 0.5,1,0)
+        Ann.pred.test0.5 = ifelse(predTest.nn > 0.5,1,0)
+        
+        
+        
+        Ann.pred.train0.5 = as.vector(Ann.pred.train0.5)
+        Ann.pred.test0.5 = as.vector(Ann.pred.test0.5)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        #table(Ann.pred.train0.5,train1$HOME_WIN)
+        
+        #accuracyTrain.ann = (table(Ann.pred.train0.5,train1$HOME_WIN)[2,2] + table(Ann.pred.train0.5,train1$HOME_WIN)[1,1])/length(Ann.pred.train0.5)
+        
+        accuracyTest.ann = (table(Ann.pred.test0.5,test1$HOME_WIN)[2,2] + table(Ann.pred.test0.5,test1$HOME_WIN)[1,1])/length(Ann.pred.test0.5)
+        
+        Ann.profit = case_when(
+            (Ann.pred.test0.5 == test$HOME_WIN) & (Ann.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Ann.pred.test0.5 == test$HOME_WIN) &(Ann.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Ann.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        profit = sum(Ann.profit)
+        
+        
+        ann_acc = c(ann_acc, accuracyTest.ann)
+        
+        ann_profit=c(ann_profit, profit)
+}
+
+
+        
+
+        
+        
+
+```
+
+#Графики
+```{r}
+acc = data.frame(gbm_acc,logistic_acc,ann_acc,ann_profit,iteration)
+profit = data.frame(gbm_profit,logistic_profit,iteration)
+
+ggplot(data = acc, mapping = aes(x = iteration, y = logistic_acc)) +
+    geom_line()
+
+ggplot(data = acc, mapping = aes(x = iteration, y = gbm_acc)) +
+    geom_line()
+
+ggplot(data = profit, mapping = aes(x = iteration, y = logistic_profit)) +
+    geom_line()
+
+ggplot(data = profit, mapping = aes(x = iteration, y = gbm_profit)) +
+    geom_line()
+
+ggplot(acc, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_acc),color="red") + 
+  geom_line( aes(y=gbm_acc),color="blue")
+
+ggplot(profit, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_profit),color="red") + 
+  geom_line( aes(y=gbm_profit),color="blue")
+```
+
+
+
+#Ожидаемая прибил
+
+#RF
+```{r}
+profit_utility_rf = c()
+acc_rf = c()
+iteration=c()
+for (i in 1:3){
+        print(i)
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)        
+        
+        model.rf=randomForest(HOME_WIN~.,data=train, mtry=5, ntree = 1000,na.action=na.roughfix)
+        predTrain.rf = predict(model.rf, train,"prob")
+        predTest.rf = predict(model.rf, test,"prob")
+        
+        Train.pred0.5.rf <- ifelse(predTrain.rf> 0.5,1,0)
+        Test.pred0.5.rf <- ifelse(predTest.rf> 0.5,1,0)
+        
+        
+        #accuracyTrain.rf = confusionMatrix(as.factor(Train.pred0.5.rf), as.factor(train$HOME_WIN), 
+        #                                     positive = "1")$overall["Accuracy"]
+        #accuracyTest.rf = confusionMatrix(as.factor(Test.pred0.5.rf), as.factor(test$HOME_WIN), 
+         #                                    positive = "1")$overall["Accuracy"]
+        
+        
+        
+        ho = predTest.rf[,2]*(test$HODD-1)*100 - (1 - predTest.rf[,2])*100
+        aw = (1 - predTest.rf[,2])*(test$AODD - 1)*100 - (predTest.rf[,2])*100 
+        
+        
+        
+        rf.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        sum(rf.profit)
+        profit_utility_rf = c(profit_utility_rf,sum(rf.profit))
+        #acc_rf = c(ann_acc,accuracyTest.rf)
+}        
+```
+
+
+#ANN
+```{r}
+profit_utility_ann = c()
+
+for (i in 1:355){
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)             
+        
+        set.seed(1)
+        train1=train
+        test1=test
+        
+        train1$HOME_WIN = as.numeric(train1$HOME_WIN) - 1
+        test1$HOME_WIN = as.numeric(test1$HOME_WIN) - 1
+        
+        print(i)
+        
+        train1 = fastDummies::dummy_cols(train1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        test1 = fastDummies::dummy_cols(test1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        nn=neuralnet(HOME_WIN~.,data=(train1 %>% na.omit()) , hidden=3,act.fct = "logistic",
+                     linear.output = FALSE)
+        predTrain.nn = predict(nn,train1 %>% na.omit(),type = "response")
+        predTest.nn = predict(nn, test1 %>% na.omit(),type = "response")
+        
+        Ann.pred.train0.5 = ifelse(predTrain.nn > 0.5,1,0)
+        Ann.pred.test0.5 = ifelse(predTest.nn > 0.5,1,0)
+        
+        
+        
+        Ann.pred.train0.5 = as.vector(Ann.pred.train0.5)
+        Ann.pred.test0.5 = as.vector(Ann.pred.test0.5)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        #table(Ann.pred.train0.5,train1$HOME_WIN)
+        
+        #accuracyTrain.ann = (table(Ann.pred.train0.5,train1$HOME_WIN)[2,2] + table(Ann.pred.train0.5,train1$HOME_WIN)[1,1])/length(Ann.pred.train0.5)
+        
+        accuracyTest.ann = (table(Ann.pred.test0.5,test1$HOME_WIN)[2,2] + table(Ann.pred.test0.5,test1$HOME_WIN)[1,1])/length(Ann.pred.test0.5)
+        
+        ho = predTest.nn*(test$HODD-1)*100 - (1 - predTest.nn)*100
+        aw = (1 - predTest.nn)*(test$AODD - 1)*100 - (predTest.nn)*100 
+        
+        
+        
+        ann.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        sum(ann.profit)
+        
+        
+
+        
+        profit_utility_ann=c(profit_utility_ann, sum(ann.profit))
+}
+
+
+iteration = c(1:355)
+profit_utility = data.frame(profit_utility_ann,iteration)
+
+ggplot(data = profit_utility, mapping = aes(x = iteration, y = profit_utility_ann)) +
+    geom_line()
+```
+
+#ЛОгистическая
+
+```{r}
+iteration = c()
+profit_utility_log = c()
+for (i in 1:355){
+        print(i)
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        
+        log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response",)
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        
+        table(Log.pred.test0.5, test$HOME_WIN)
+        
+        ho = Log.test*(test$HODD-1)*100 - (1 - Log.test)*100
+        aw = (1 - Log.test)*(test$AODD - 1)*100 - (Log.test)*100 
+        
+        
+        
+        log.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        sum(log.profit)
+        
+        
+
+        
+        profit_utility_log=c(profit_utility_log, sum(log.profit))
+        
+}
+
+iteration = c(1:355)
+
+profit_utility = data.frame(profit_utility_log,iteration,profit_utility_ann)
+
+ggplot(profit_utility, aes(x=iteration)) +
+  
+  geom_line( aes(y=profit_utility_log),color="red") + 
+  geom_line( aes(y=profit_utility_ann),color="blue")
+```
+
+#Boosting
+
+```{r}
+profit_utility_gbm = c()
+for (i in 1:3){        
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+        summary(model.boost)
+        
+        predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        
+        
+        
+        Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+        Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+        
+        accuracyTrain.boost = confusionMatrix(as.factor(Train.pred0.5.boost), as.factor(train$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        accuracyTest.boost = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        ho = predTestProb.boost*(test$HODD-1)*100 - (1 - predTestProb.boost)*100
+        aw = (1 - predTestProb.boost)*(test$AODD - 1)*100 - (predTestProb.boost)*100 
+        
+        
+        
+        gbm.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        sum(gbm.profit)
+        
+        
+
+        
+        profit_utility_gbm=c(profit_utility_gbm, sum(gbm.profit))
+}
+profit_utility_gbm
+
+```
+
+
+#VERY BIG LOOP
+
+
+
+```{r}
+iteration = c()
+
+logistic_acc = c()
+logistic_profit = c()
+logistic_utility_profit = c()
+
+gbm_acc = c()
+gbm_profit = c()
+gbm_utility_profit = c()
+
+rf_acc = c()
+rf_profit = c()
+rf_utility_profit = c()
+
+
+ann_acc = c()
+ann_profit = c()
+ann_utility_profit = c()
+
+stack_acc = c()
+stack_profit = c()
+stack_utility_profit = c()
+
+```
+
+```{r}
+library(e1071)
+```
+
+```{r}
+i = 100
+for (i in 100:150){
+        #LOGIST
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        
+        log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response")
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        accuracyTrain.log = confusionMatrix(as.factor(Log.pred.train0.5),as.factor(train$HOME_WIN),                                            positive = "1")$overall["Accuracy"]
+        
+        accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+        
+        
+        
+        #table(Log.pred.test0.5, test$HOME_WIN)
+        
+        Log.profit = case_when(
+            (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Log.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        sum(Log.profit)
+        
+        ho = Log.test*(test$HODD-1)*100 - (1 - Log.test)*100
+        aw = (1 - Log.test)*(test$AODD - 1)*100 - (Log.test)*100 
+        
+        
+        
+        log.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0)
+        
+        sum(log.profit_utility)
+        
+        logistic_acc = c(logistic_acc,accuracyTest.log)
+        logistic_profit = c(logistic_profit,sum(Log.profit))
+        logistic_utility_profit = c(logistic_utility_profit, sum(log.profit_utility))
+
+
+        
+        
+        
+        
+        
+        #BOOSTING
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+        summary(model.boost)
+        
+        predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        
+        
+        
+        Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+        Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+        
+        accuracyTrain.boost = confusionMatrix(as.factor(Train.pred0.5.boost), as.factor(train$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        accuracyTest.boost = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        
+        
+        Boost.profit = case_when(
+            (Test.pred0.5.boost == test$HOME_WIN) & (Test.pred0.5.boost == 1) ~ 100*test$HODD - 100,
+            (Test.pred0.5.boost == test$HOME_WIN) &(Test.pred0.5.boost == 0)  ~ 100*test$AODD - 100,
+            Test.pred0.5.boost != test$HOME_WIN ~ -100
+        )
+        
+        
+        ho = predTestProb.boost*(test$HODD-1)*100 - (1 - predTestProb.boost)*100
+        aw = (1 - predTestProb.boost)*(test$AODD - 1)*100 - (predTestProb.boost)*100 
+        
+        
+        
+        gbm.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        
+        
+        
+        
+        
+        gbm_acc = c(gbm_acc,accuracyTest.boost)
+        gbm_profit = c(gbm_profit,sum(Boost.profit))
+        gbm_utility_profit = c(gbm_utility_profit, sum(gbm.profit))
+        
+        
+        #RANDOM FOREST
+        
+        model.rf=randomForest(HOME_WIN~.,data=train, mtry=5, ntree = 1000,na.action=na.roughfix)
+        predTrain.rf = predict(model.rf, train)
+        predTest.rf = predict(model.rf, test)
+        
+        accuracyTrain.rf = confusionMatrix(predTrain.rf, train$HOME_WIN, positive = "1")$overall["Accuracy"]
+        accuracyTest.rf = confusionMatrix(predTest.rf, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+        
+        predTrain.rf = predict(model.rf, train,"prob")
+        predTest.rf = predict(model.rf, test,"prob")
+        
+        predTrain.rf1 = predict(model.rf, train)
+        predTest.rf1 = predict(model.rf, test)
+        
+        Train.pred0.5.rf <- ifelse(predTrain.rf> 0.5,1,0)
+        Test.pred0.5.rf <- ifelse(predTest.rf> 0.5,1,0)
+        
+        
+        
+        RF.profit = case_when(
+            (predTest.rf1 == test$HOME_WIN) & (predTest.rf1 == 1) ~ 100*test$HODD - 100,
+            (predTest.rf1 == test$HOME_WIN) &(predTest.rf1 == 0)  ~ 100*test$AODD - 100,
+            predTest.rf1 != test$HOME_WIN ~ -100)
+        
+        
+        
+        ho = predTest.rf[,2]*(test$HODD-1)*100 - (1 - predTest.rf[,2])*100
+        aw = (1 - predTest.rf[,2])*(test$AODD - 1)*100 - (predTest.rf[,2])*100 
+        
+        
+        
+        rf.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        
+        
+        rf_acc = c(rf_acc,accuracyTest.rf )
+        rf_profit = c(rf_profit,sum(RF.profit) )
+        rf_utility_profit = c(rf_utility_profit , sum(rf.profit_utility))
+        
+        print(i)
+} 
+        
+        #ANN
+        
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)             
+        
+        set.seed(1)
+        train1=train
+        test1=test
+        
+        train1$HOME_WIN = as.numeric(train1$HOME_WIN) - 1
+        test1$HOME_WIN = as.numeric(test1$HOME_WIN) - 1
+        
+
+        train1 = fastDummies::dummy_cols(train1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        test1 = fastDummies::dummy_cols(test1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        nn=neuralnet(HOME_WIN~.,data=(train1 %>% na.omit()) , hidden=3,act.fct = "logistic",
+                     linear.output = FALSE)
+        predTrain.nn = predict(nn,train1 %>% na.omit(),type = "response")
+        predTest.nn = predict(nn, test1 %>% na.omit(),type = "response")
+        
+        Ann.pred.train0.5 = ifelse(predTrain.nn > 0.5,1,0)
+        Ann.pred.test0.5 = ifelse(predTest.nn > 0.5,1,0)
+        
+        
+        
+        Ann.pred.train0.5 = as.vector(Ann.pred.train0.5)
+        Ann.pred.test0.5 = as.vector(Ann.pred.test0.5)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        #table(Ann.pred.train0.5,train1$HOME_WIN)
+        
+        #accuracyTrain.ann = (table(Ann.pred.train0.5,train1$HOME_WIN)[2,2] + table(Ann.pred.train0.5,train1$HOME_WIN)[1,1])/length(Ann.pred.train0.5)
+        
+        accuracyTest.ann = (table(Ann.pred.test0.5,test1$HOME_WIN)[2,2] + table(Ann.pred.test0.5,test1$HOME_WIN)[1,1])/length(Ann.pred.test0.5)
+        
+        Ann.profit = case_when(
+            (Ann.pred.test0.5 == test$HOME_WIN) & (Ann.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Ann.pred.test0.5 == test$HOME_WIN) &(Ann.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Ann.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        
+        ho = predTest.nn*(test$HODD-1)*100 - (1 - predTest.nn)*100
+        aw = (1 - predTest.nn)*(test$AODD - 1)*100 - (predTest.nn)*100 
+        
+        
+        
+        ann.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+
+        
+        ann_acc = c(ann_acc,accuracyTest.ann)
+        ann_profit = c(ann_profit,sum(Ann.profit))
+        ann_utility_profit = c(ann_utility_profit,sum(ann.profit_utility))
+        
+        
+        
+        ###STACKING
+        
+        
+        dataStack =  data.frame(reg = Log.train, 
+                        gbm = predTrainProb.boost, 
+                        tree = predTrain.rf,
+                        ann = predTrain.nn,
+                        HOME_WIN = train$HOME_WIN)
+
+        model.stack = caret::train(HOME_WIN~., data=(dataStack), method = "ctree", na.action = na.pass)
+        
+        
+
+        predictionsTest = data.frame(reg = Log.test, gbm = predTestProb.boost, tree = predTest.rf,ann = predTest.nn ,HOME_WIN = test$HOME_WIN)
+
+
+
+        predTrain.stack = predict(model.stack, newdata = dataStack)
+        predTest.stack = predict(model.stack, newdata = predictionsTest)
+        
+        accuracyTrain.rf = confusionMatrix(predTrain.stack, train$HOME_WIN, positive = "1")$overall["Accuracy"]
+        accuracyTest.rf = confusionMatrix(predTest.stack, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+        
+        predTest.stack = as.numeric(predTest.stack) - 1
+        
+        
+        stacking.profit = case_when(
+        (predTest.stack == test$HOME_WIN) & (predTest.stack == 1) ~ 100*test$HODD - 100,
+        (predTest.stack == test$HOME_WIN) &(predTest.stack == 0)  ~ 100*test$AODD - 100,
+        predTest.stack != test$HOME_WIN ~ -100)
+        
+        print(i)
+        
+}
+
+
+```
+
+
+
+```{r}
+iteration = c(0:355) 
+
+logistic_acc
+logistic_profit
+logistic_utility_profit
+
+gbm_acc 
+gbm_profit 
+gbm_utility_profit 
+
+rf_acc 
+rf_profit
+rf_utility_profit 
+
+
+ann_acc
+ann_profit 
+ann_utility_profit
+
+stack_acc
+stack_profit
+stack_utility_profit
+
+big_data = data.frame(iteration,logistic_acc,logistic_profit,logistic_utility_profit,gbm_acc,gbm_profit,gbm_utility_profit,rf_acc,rf_profit,rf_utility_profit,ann_acc,ann_profit,ann_utility_profit)
+
+write.csv(big_data,"comparison.csv", row.names = FALSE)
+
+
+
+ggplot(big_data, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_utility_profit),color="red") + 
+  geom_line( aes(y=ann_utility_profit),color="blue")
+
+
+```
+
+
+
+
+
+#ДЕЛАЕМ СРАВНЕНИЕ СО ВСЕМИ ДАННЫМИ И КОЭФАМ
+
+```{r}
+logistic_acc = c()
+logistic_profit = c()
+logistic_utility_profit = c()
+
+
+logistic_acc_nb = c()
+logistic_profit_nb = c()
+logistic_utility_profit_nb = c()
+
+
+logistic_acc_b = c()
+logistic_profit_b = c()
+logistic_utility_profit_b = c()
+```
+
+
+#Все ДЛЯ СТАВОЧЕК
+```{r}
+i = 0
+for (i in 0:355){
+        #LOGIST
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        
+        log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response")
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        accuracyTrain.log = confusionMatrix(as.factor(Log.pred.train0.5),as.factor(train$HOME_WIN),                                            positive = "1")$overall["Accuracy"]
+        
+        accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+        
+        
+        
+        #table(Log.pred.test0.5, test$HOME_WIN)
+        
+        Log.profit = case_when(
+            (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Log.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        sum(Log.profit)
+        
+        ho = Log.test*(test$HODD-1)*100 - (1 - Log.test)*100
+        aw = (1 - Log.test)*(test$AODD - 1)*100 - (Log.test)*100 
+        
+        
+        
+        log.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0)
+        
+        sum(log.profit_utility)
+        
+        logistic_acc = c(logistic_acc,accuracyTest.log)
+        logistic_profit = c(logistic_profit,sum(Log.profit))
+        logistic_utility_profit = c(logistic_utility_profit, sum(log.profit_utility))
+        
+        #БЕЗ СТАВОЧЕК
+        
+        
+        BETS = c(2,4,5,6,7,8,222)
+
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[-BETS],collapse="+")))
+
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+        summary(log.model)
+        
+        #log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response")
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        accuracyTrain.log = confusionMatrix(as.factor(Log.pred.train0.5),as.factor(train$HOME_WIN),                                            positive = "1")$overall["Accuracy"]
+        
+        accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+        
+        
+        
+        #table(Log.pred.test0.5, test$HOME_WIN)
+        
+        Log.profit = case_when(
+            (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Log.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        sum(Log.profit)
+        
+        ho = Log.test*(test$HODD-1)*100 - (1 - Log.test)*100
+        aw = (1 - Log.test)*(test$AODD - 1)*100 - (Log.test)*100 
+        
+        
+        
+        log.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0)
+        
+        sum(log.profit_utility)
+        
+        logistic_acc_nb = c(logistic_acc_nb,accuracyTest.log)
+        logistic_profit_nb = c(logistic_profit_nb,sum(Log.profit))
+        logistic_utility_profit_nb = c(logistic_utility_profit_nb, sum(log.profit_utility))
+        
+        
+        #ОНЛИ СТАВОЧКИ
+        BETS = c(2,4,5,6,7,8)
+        
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[BETS],collapse="+")))
+
+        log.model = glm(HOME_WIN~AODD+HODD+TotalOpen+ForaOpen, data = train, family = binomial(link = 'logit'))
+
+        
+        #log.model = glm(HOME_WIN~., data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response")
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        accuracyTrain.log = confusionMatrix(as.factor(Log.pred.train0.5),as.factor(train$HOME_WIN),                                            positive = "1")$overall["Accuracy"]
+        
+        accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+        
+        
+        
+        #table(Log.pred.test0.5, test$HOME_WIN)
+        
+        Log.profit = case_when(
+            (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Log.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        sum(Log.profit)
+        
+        ho = Log.test*(test$HODD-1)*100 - (1 - Log.test)*100
+        aw = (1 - Log.test)*(test$AODD - 1)*100 - (Log.test)*100 
+        
+        
+        
+        log.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0)
+        
+        sum(log.profit_utility)
+        
+        logistic_acc_b = c(logistic_acc_b,accuracyTest.log)
+        logistic_profit_b = c(logistic_profit_b,sum(Log.profit))
+        logistic_utility_profit_b = c(logistic_utility_profit_b, sum(log.profit_utility))
+        
+        print(i)
+        
+}
+```
+
+
+```{r}
+iteration = c(0:355)
+
+
+
+bets_data = data.frame(iteration,logistic_acc,logistic_profit,logistic_utility_profit,logistic_acc_nb,logistic_profit_nb,logistic_utility_profit_nb,logistic_acc_b,logistic_profit_b,logistic_utility_profit_b)
+
+
+ggplot(bets_data, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_utility_profit),color="red") + 
+  geom_line( aes(y=logistic_utility_profit_nb),color="blue")
+
+
+ggplot(bets_data, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_acc),color="red") + 
+  geom_line( aes(y=logistic_acc_nb),color="blue")+
+    geom_line( aes(y=logistic_acc_b),color="green")
+
+ggplot(bets_data, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_utility_profit),color="red") + 
+  geom_line( aes(y=logistic_utility_profit_nb),color="blue")+
+    geom_line( aes(y=logistic_utility_profit_b),color="green")
+
+```
+
+
+
+
+
+#ВСЕ ТОЛЬКО ПО СТАВОЧКАМ
+
+
+```{r}
+logistic_acc_b = c()
+logistic_profit_b = c()
+logistic_utility_profit_b = c()
+logistic_sens_b = c()
+logistic_spec_b = c()
+logistic_auc_b = c()
+
+gbm_acc_b = c()
+gbm_profit_b = c()
+gbm_utility_profit_b = c()
+gbm_sens_b = c()
+gbm_spec_b = c()
+gbm_auc_b = c()
+
+rf_acc_b = c()
+rf_profit_b = c()
+rf_utility_profit_b = c()
+rf_sens_b = c()
+rf_spec_b = c()
+rf_auc_b = c()
+
+
+ann_acc_b = c()
+ann_profit_b = c()
+ann_utility_profit_b = c()
+ann_sens_b = c()
+ann_spec_b = c()
+ann_auc_b = c()
+
+
+```
+
+
+
+```{r}
+i=0
+
+for (i in 0:355){
+        #LOGIST
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        library(pROC)
+        
+        BETS = c(2,4,5,6,7,8)
+
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[BETS],collapse="+")))
+        
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response")
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        #АУФ
+
+        
+        accuracyTrain.log = confusionMatrix(as.factor(Log.pred.train0.5),as.factor(train$HOME_WIN),                                            positive = "1")$overall["Accuracy"]
+        
+        accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+
+        
+        sensTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Sensitivity"]
+        
+        specTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Specificity"]
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = Log.test)
+        
+        ROCfull$auc
+        
+        
+        
+        #table(Log.pred.test0.5, test$HOME_WIN)
+        
+        Log.profit = case_when(
+            (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Log.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        sum(Log.profit)
+        
+        ho = Log.test*(test$HODD-1)*100 - (1 - Log.test)*100
+        aw = (1 - Log.test)*(test$AODD - 1)*100 - (Log.test)*100 
+        
+        
+        
+        log.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0)
+        
+        sum(log.profit_utility)
+        
+        logistic_acc_b = c(logistic_acc_b,accuracyTest.log)
+        logistic_profit_b = c(logistic_profit_b,sum(Log.profit))
+        logistic_utility_profit_b = c(logistic_utility_profit_b, sum(log.profit_utility))
+        logistic_sens_b = c(logistic_sens_b, sensTest.log)
+        logistic_spec_b = c(logistic_spec_b, specTest.log)
+        logistic_auc_b = c(logistic_auc_b, ROCfull$auc)
+
+
+        
+        
+        
+        
+        
+        #BOOSTING
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~AODD+HODD+TotalOpen+TotalClose+ForaOpen+ForaClose, data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+        summary(model.boost)
+        
+        predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        
+        
+        
+        Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+        Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+
+        
+        
+        accuracyTrain.boost = confusionMatrix(as.factor(Train.pred0.5.boost), as.factor(train$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        accuracyTest.boost = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        
+        sensTest.gbm = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Sensitivity"]
+        
+        specTest.gbm = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Specificity"]
+        
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = predTestProb.boost)
+        
+        ROCfull$auc
+        
+        
+        Boost.profit = case_when(
+            (Test.pred0.5.boost == test$HOME_WIN) & (Test.pred0.5.boost == 1) ~ 100*test$HODD - 100,
+            (Test.pred0.5.boost == test$HOME_WIN) &(Test.pred0.5.boost == 0)  ~ 100*test$AODD - 100,
+            Test.pred0.5.boost != test$HOME_WIN ~ -100
+        )
+        
+        
+        ho = predTestProb.boost*(test$HODD-1)*100 - (1 - predTestProb.boost)*100
+        aw = (1 - predTestProb.boost)*(test$AODD - 1)*100 - (predTestProb.boost)*100 
+        
+        
+        
+        gbm.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        
+        
+        
+        
+        
+        gbm_acc_b = c(gbm_acc_b,accuracyTest.boost)
+        gbm_profit_b = c(gbm_profit_b,sum(Boost.profit))
+        gbm_utility_profit_b = c(gbm_utility_profit_b, sum(gbm.profit))
+        gbm_sens_b = c(gbm_sens_b, sensTest.gbm)
+        gbm_spec_b = c(gbm_spec_b, specTest.gbm)
+        gbm_auc_b = c(gbm_auc_b, ROCfull$auc)
+
+        
+        
+        #RANDOM FOREST
+        
+        model.rf=randomForest(formula,data=train, mtry=5, ntree = 1000,na.action=na.roughfix)
+        
+        predTrain.rf = predict(model.rf, train,"prob")
+        predTest.rf = predict(model.rf, test,"prob")
+        
+        predTrain.rf1 = predict(model.rf, train)
+        predTest.rf1 = predict(model.rf, test)
+      
+        
+
+        accuracyTest.rf = confusionMatrix(predTest.rf1, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+        
+        
+        sensTest.rf = confusionMatrix(predTest.rf1, test$HOME_WIN, positive = "1")$byClass["Sensitivity"]
+        
+        specTest.rf = confusionMatrix(predTest.rf1, test$HOME_WIN, positive = "1")$byClass["Specificity"]
+        
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = predTest.rf[,2])
+        
+        ROCfull$auc
+        
+        
+        
+        RF.profit = case_when(
+            (predTest.rf1 == test$HOME_WIN) & (predTest.rf1 == 1) ~ 100*test$HODD - 100,
+            (predTest.rf1 == test$HOME_WIN) &(predTest.rf1 == 0)  ~ 100*test$AODD - 100,
+            predTest.rf1 != test$HOME_WIN ~ -100)
+        
+        
+        
+        ho = predTest.rf[,2]*(test$HODD-1)*100 - (1 - predTest.rf[,2])*100
+        aw = (1 - predTest.rf[,2])*(test$AODD - 1)*100 - (predTest.rf[,2])*100 
+        
+        
+        
+        rf.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        
+        
+        rf_acc_b = c(rf_acc_b, accuracyTest.rf )
+        rf_profit_b = c(rf_profit_b,sum(RF.profit) )
+        rf_utility_profit_b = c(rf_utility_profit_b , sum(rf.profit_utility))
+        rf_sens_b = c(rf_sens_b, sensTest.rf)
+        rf_spec_b = c(rf_spec_b, specTest.rf)
+        rf_auc_b = c(rf_auc_b, ROCfull$auc)
+        print(i)
+
+}
+        
+
+
+
+```
+
+
+```{r}
+iteration
+
+logistic_acc_b 
+logistic_profit_b 
+logistic_utility_profit_b 
+logistic_sens_b 
+logistic_spec_b 
+logistic_auc_b 
+
+gbm_acc_b
+gbm_profit_b
+gbm_utility_profit_b
+gbm_sens_b
+gbm_spec_b
+gbm_auc_b
+
+rf_acc_b 
+rf_profit_b
+rf_utility_profit_b
+rf_sens_b
+rf_spec_b
+rf_auc_b
+
+
+
+big_data_b = data.frame(logistic_acc_b, 
+logistic_profit_b, 
+logistic_utility_profit_b ,
+logistic_sens_b ,
+logistic_spec_b ,
+logistic_auc_b ,
+gbm_acc_b ,
+gbm_profit_b ,
+gbm_utility_profit_b , 
+gbm_sens_b , 
+gbm_spec_b , 
+gbm_auc_b , 
+rf_acc_b ,
+rf_profit_b , 
+rf_utility_profit_b , 
+rf_sens_b , 
+rf_spec_b , 
+rf_auc_b 
+)
+
+big_data_b$iteration = c(0:355)
+
+write.csv(big_data_b,"comparison_b.csv", row.names = FALSE)
+
+
+
+```
+
+
+#БЕЗ СТАВОК СРАВНЕНИЕ
+
+```{r}
+logistic_acc_nb = c()
+logistic_profit_nb = c()
+logistic_utility_profit_nb = c()
+logistic_sens_nb = c()
+logistic_spec_nb = c()
+logistic_auc_nb = c()
+
+gbm_acc_nb = c()
+gbm_profit_nb = c()
+gbm_utility_profit_nb = c()
+gbm_sens_nb = c()
+gbm_spec_nb = c()
+gbm_auc_nb = c()
+
+rf_acc_nb = c()
+rf_profit_nb = c()
+rf_utility_profit_nb = c()
+rf_sens_nb = c()
+rf_spec_nb = c()
+rf_auc_nb = c()
+
+```
+
+
+
+```{r}
+i=150
+
+for (i in 0:355){
+        #LOGIST
+        start = 500
+        end = 600
+        iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        library(pROC)
+        
+        BETS = c(2,4,5,6,7,8,222)
+
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[-BETS],collapse="+")))
+        
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+        
+        Log.train = predict(log.model, newdata = train, type = "response")
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.train0.5 = ifelse(Log.train > 0.5,1,0)
+        Log.pred.test0.5 = ifelse(Log.test > 0.5,1,0)
+        
+        #АУФ
+
+        
+        accuracyTrain.log = confusionMatrix(as.factor(Log.pred.train0.5),as.factor(train$HOME_WIN),                                            positive = "1")$overall["Accuracy"]
+        
+        accuracyTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$overall["Accuracy"]
+
+        
+        sensTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Sensitivity"]
+        
+        specTest.log = confusionMatrix(as.factor(Log.pred.test0.5), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Specificity"]
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = Log.test)
+        
+        ROCfull$auc
+        
+        
+        
+        #table(Log.pred.test0.5, test$HOME_WIN)
+        
+        Log.profit = case_when(
+            (Log.pred.test0.5 == test$HOME_WIN) & (Log.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Log.pred.test0.5 == test$HOME_WIN) &(Log.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Log.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        sum(Log.profit)
+        
+        ho = Log.test*(test$HODD-1)*100 - (1 - Log.test)*100
+        aw = (1 - Log.test)*(test$AODD - 1)*100 - (Log.test)*100 
+        
+        
+        
+        log.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0)
+        
+        sum(log.profit_utility)
+        
+        logistic_acc_nb = c(logistic_acc_nb,accuracyTest.log)
+        logistic_profit_nb = c(logistic_profit_nb,sum(Log.profit))
+        logistic_utility_profit_nb = c(logistic_utility_profit_nb, sum(log.profit_utility))
+        logistic_sens_nb = c(logistic_sens_nb, sensTest.log)
+        logistic_spec_nb = c(logistic_spec_nb, specTest.log)
+        logistic_auc_nb = c(logistic_auc_nb, ROCfull$auc)
+
+
+        
+        
+        
+        
+        train2=train
+        train2 = train2 %>% select(-AODD,-HODD,-TotalOpen,-TotalClose,-ForaOpen,-ForaClose)
+        
+        #BOOSTING
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train2, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+        summary(model.boost)
+        
+        predTrainProb.boost = predict(model.boost, train, n.trees = 2000, type = "response")
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        
+        
+        
+        Train.pred0.5.boost <- ifelse(predTrainProb.boost> 0.5,1,0)
+        Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+
+        
+        
+        accuracyTrain.boost = confusionMatrix(as.factor(Train.pred0.5.boost), as.factor(train$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        accuracyTest.boost = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                             positive = "1")$overall["Accuracy"]
+        
+        sensTest.gbm = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Sensitivity"]
+        
+        specTest.gbm = confusionMatrix(as.factor(Test.pred0.5.boost), as.factor(test$HOME_WIN), 
+                                           positive = "1")$byClass["Specificity"]
+        
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = predTestProb.boost)
+        
+        ROCfull$auc
+        
+        
+        Boost.profit = case_when(
+            (Test.pred0.5.boost == test$HOME_WIN) & (Test.pred0.5.boost == 1) ~ 100*test$HODD - 100,
+            (Test.pred0.5.boost == test$HOME_WIN) &(Test.pred0.5.boost == 0)  ~ 100*test$AODD - 100,
+            Test.pred0.5.boost != test$HOME_WIN ~ -100
+        )
+        
+        
+        ho = predTestProb.boost*(test$HODD-1)*100 - (1 - predTestProb.boost)*100
+        aw = (1 - predTestProb.boost)*(test$AODD - 1)*100 - (predTestProb.boost)*100 
+        
+        
+        
+        gbm.profit = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        
+        
+        
+        
+        
+        gbm_acc_nb = c(gbm_acc_nb,accuracyTest.boost)
+        gbm_profit_nb = c(gbm_profit_nb,sum(Boost.profit))
+        gbm_utility_profit_nb = c(gbm_utility_profit_nb, sum(gbm.profit))
+        gbm_sens_nb = c(gbm_sens_nb, sensTest.gbm)
+        gbm_spec_nb = c(gbm_spec_nb, specTest.gbm)
+        gbm_auc_nb = c(gbm_auc_nb, ROCfull$auc)
+
+        
+        
+        #RANDOM FOREST
+        
+        model.rf=randomForest(formula,data=train, mtry=5, ntree = 1000,na.action=na.roughfix)
+        
+        predTrain.rf = predict(model.rf, train,"prob")
+        predTest.rf = predict(model.rf, test,"prob")
+        
+        predTrain.rf1 = predict(model.rf, train)
+        predTest.rf1 = predict(model.rf, test)
+      
+        
+
+        accuracyTest.rf = confusionMatrix(predTest.rf1, test$HOME_WIN, positive = "1")$overall["Accuracy"]
+        
+        
+        sensTest.rf = confusionMatrix(predTest.rf1, test$HOME_WIN, positive = "1")$byClass["Sensitivity"]
+        
+        specTest.rf = confusionMatrix(predTest.rf1, test$HOME_WIN, positive = "1")$byClass["Specificity"]
+        
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = predTest.rf[,2])
+        
+        ROCfull$auc
+        
+        
+        
+        RF.profit = case_when(
+            (predTest.rf1 == test$HOME_WIN) & (predTest.rf1 == 1) ~ 100*test$HODD - 100,
+            (predTest.rf1 == test$HOME_WIN) &(predTest.rf1 == 0)  ~ 100*test$AODD - 100,
+            predTest.rf1 != test$HOME_WIN ~ -100)
+        
+        
+        
+        ho = predTest.rf[,2]*(test$HODD-1)*100 - (1 - predTest.rf[,2])*100
+        aw = (1 - predTest.rf[,2])*(test$AODD - 1)*100 - (predTest.rf[,2])*100 
+        
+        
+        
+        rf.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        
+        
+        rf_acc_nb = c(rf_acc_nb, accuracyTest.rf )
+        rf_profit_nb = c(rf_profit_nb,sum(RF.profit) )
+        rf_utility_profit_nb = c(rf_utility_profit_nb , sum(rf.profit_utility))
+        rf_sens_nb = c(rf_sens_nb, sensTest.rf)
+        rf_spec_nb = c(rf_spec_nb, specTest.rf)
+        rf_auc_nb = c(rf_auc_nb, ROCfull$auc)
+        print(i)
+
+}
+        
+
+
+
+```
+
+
+```{r}
+iteration
+
+logistic_acc_nb
+logistic_profit_nb 
+logistic_utility_profit_nb 
+logistic_sens_nb 
+logistic_spec_nb 
+logistic_auc_nb 
+
+gbm_acc_nb
+gbm_profit_nb
+gbm_utility_profit_nb
+gbm_sens_nb
+gbm_spec_nb
+gbm_auc_nb
+
+rf_acc_nb 
+rf_profit_nb
+rf_utility_profit_nb
+rf_sens_nb
+rf_spec_nb
+rf_auc_nb
+
+
+
+big_data_nb = data.frame(logistic_acc_nb, 
+logistic_profit_nb, 
+logistic_utility_profit_nb ,
+logistic_sens_nb ,
+logistic_spec_nb ,
+logistic_auc_nb ,
+gbm_acc_nb ,
+gbm_profit_nb ,
+gbm_utility_profit_nb , 
+gbm_sens_nb , 
+gbm_spec_nb , 
+gbm_auc_nb , 
+rf_acc_nb ,
+rf_profit_nb , 
+rf_utility_profit_nb , 
+rf_sens_nb , 
+rf_spec_nb , 
+rf_auc_nb 
+)
+
+big_data_nb= big_data_nb[4:nrow(big_data_nb),1:length(big_data_nb)] 
+
+big_data_nb$iteration = c(0:355)
+write.csv(big_data_nb,"comparison_nb.csv", row.names = FALSE)
+
+
+
+```
+
+#Графики
+
+```{r}
+ggplot(big_data_nb, aes(x=iteration)) +
+  
+  geom_line( aes(y=rf_utility_profit_nb),color="red") + 
+  geom_line( aes(y=rf_profit_nb),color="blue")
+    #geom_line( aes(y=rf_utility_profit_nb),color="green")
+```
+
+
+```{r}
+ggplot(big_data_b, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_utility_profit_b),color="red") + 
+  geom_line( aes(y=gbm_utility_profit_b),color="blue")+
+    geom_line( aes(y=rf_utility_profit_b),color="green")
+```
+
+
+
+
+
+#ANN (NO_BETS)
+
+```{r}
+ann_acc_nb = c()
+ann_profit_nb = c()
+ann_utility_profit_nb = c()
+ann_sens_nb = c()
+ann_spec_nb = c()
+ann_auc_nb = c()
+```
+
+#ЗДЕСЬ Я ОТСОСАЛ
+
+```{r}
+library(dplyr)
+i=25
+#i=194
+############
+        #ANN
+for (i in 0:355){
+        
+        start = 500
+        end = 600
+        #iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)             
+        
+
+        
+        set.seed(1)
+        train1=train %>% select(-AODD,-HODD,-TotalOpen,-TotalClose,-ForaOpen,-ForaClose)
+        test1=test %>% select(-AODD,-HODD,-TotalOpen,-TotalClose,-ForaOpen,-ForaClose)
+        train1=train1 %>% select(-HOME_WIN)
+        test1=test1 %>% select(-HOME_WIN)
+        
+        
+
+        all_train = fastDummies::dummy_cols(train1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        train2 = all_train
+        train2$HOME_WIN = train$HOME_WIN
+        train2$HOME_WIN = as.numeric(train2$HOME_WIN) - 1
+
+        dummies_train = all_train[, -which(names(all_train)%in%intersect(colnames(all_train), colnames(test1)))]
+        numeric_train = all_train[, which(names(all_train)%in%intersect(colnames(all_train), colnames(test1)))]
+        
+        
+        
+        all_test = fastDummies::dummy_cols(test1,remove_selected_columns = T,remove_first_dummy = TRUE)
+        test2 = all_test
+        test2$HOME_WIN = test$HOME_WIN
+        test2$HOME_WIN = as.numeric(test2$HOME_WIN) - 1
+        
+        which(names(all_test)%in%intersect(colnames(all_test), colnames(test1)))
+
+        dummies_test = all_test[, -which(names(all_test)%in%intersect(colnames(all_test), colnames(test1)))]
+        numeric_test = all_test[, which(names(all_test)%in%intersect(colnames(all_test), colnames(test1)))]
+        
+        
+        mean_data <- apply(numeric_train, 2, mean)
+        sd_data <- apply(numeric_train, 2, sd)
+        data_scaled_train <- as.data.frame(scale(numeric_train,center = mean_data, scale = sd_data))
+
+      
+        train_sc = data_scaled_train %>% cbind(dummies_train)
+        
+        train_sc$HOME_WIN = train$HOME_WIN 
+        train_sc$HOME_WIN = as.numeric(train_sc$HOME_WIN) - 1
+        
+        #TEST
+        
+        mean_data <- apply(numeric_test, 2, mean)
+        sd_data <- apply(numeric_test, 2, sd)
+        data_scaled_test <- as.data.frame(scale(numeric_test,center = mean_data, scale = sd_data))
+
+        
+        test_sc = data_scaled_test %>% cbind(dummies_test)
+        
+        test_sc$HOME_WIN = test$HOME_WIN 
+        test_sc$HOME_WIN = as.numeric(test_sc$HOME_WIN) - 1
+        
+        set.seed(1)
+        
+        #net = neuralnet(HOME_WIN~.,data=train_sc,hidden=c(20,10),rep=5,linear.output=FALSE)
+        
+        tune.grid.neuralnet <- expand.grid(
+        layer1 = 20,
+        layer2 = 10,
+        layer3 = 5)
+        
+        net <- train(HOME_WIN~., data = train_sc, 
+               method = "mlpML",
+               tuneGrid = tune.grid.neuralnet)
+        
+
+        predTrain.nn <- predict(net,train_sc)
+        Ann.pred.train0.5 = ifelse(predTrain.nn>0.5,1,0)
+        table(Ann.pred.train0.5,train$HOME_WIN)
+        
+
+        
+        predTest.nn <- predict(net,test_sc)
+        Ann.pred.test0.5 = ifelse(predTest.nn>0.5,1,0)
+        
+        table(Ann.pred.test0.5, test$HOME_WIN)
+        
+        
+        
+        
+        
+        
+        
+        accuracyTest.ann = confusionMatrix(as.factor(Ann.pred.test0.5), as.factor(test$HOME_WIN), positive = "1")$overall["Accuracy"]
+
+        accuracyTest.ann
+        
+        sensTest.ann = confusionMatrix(as.factor(Ann.pred.test0.5), as.factor(test$HOME_WIN), positive = "1")$byClass["Sensitivity"]
+        
+        specTest.ann = confusionMatrix(as.factor(Ann.pred.test0.5), as.factor(test$HOME_WIN), positive = "1")$byClass["Specificity"]
+        
+        
+        
+        
+        Ann.pred.train0.5 = as.vector(Ann.pred.train0.5)
+        Ann.pred.test0.5 = as.vector(Ann.pred.test0.5)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = predTest.nn)
+        
+        ROCfull$auc
+        
+        #table(Ann.pred.train0.5,train1$HOME_WIN)
+        
+        #accuracyTrain.ann = (table(Ann.pred.train0.5,train1$HOME_WIN)[2,2] + table(Ann.pred.train0.5,train1$HOME_WIN)[1,1])/length(Ann.pred.train0.5)
+        
+        
+        
+        Ann.profit = case_when(
+            (Ann.pred.test0.5 == test$HOME_WIN) & (Ann.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Ann.pred.test0.5 == test$HOME_WIN) &(Ann.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Ann.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        
+        ho = predTest.nn*(test$HODD-1)*100 - (1 - predTest.nn)*100
+        aw = (1 - predTest.nn)*(test$AODD - 1)*100 - (predTest.nn)*100 
+        
+        
+        
+        ann.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+
+        
+        ann_acc_nb = c(ann_acc_nb,accuracyTest.ann)
+        ann_profit_nb = c(ann_profit_nb,sum(Ann.profit))
+        ann_utility_profit_nb = c(ann_utility_profit_nb,sum(ann.profit_utility))
+        ann_sens_nb = c(ann_sens_nb,sensTest.ann)
+        ann_spec_nb = c(ann_spec_nb,specTest.ann)
+        ann_auc_nb = c(ann_auc_nb, ROCfull$auc)
+        
+        print(i)
+}
+##############
+
+
+```
+
+```{r}
+
+  ann_acc_nb_mlnet =ann_acc_nb 
+ ann_profit_nb_mlnet =ann_profit_nb 
+ ann_utility_profit_nb_mlnet = ann_utility_profit_nb 
+ ann_sens_nb_mlnet = ann_sens_nb 
+ann_spec_nb_mlnet = ann_spec_nb 
+ ann_auc_nb_mlnet = ann_auc_nb 
+
+
+big_data_nb_ann_caret = data.frame(ann_acc_nb_mlnet, 
+ann_profit_nb_mlnet, 
+ann_utility_profit_nb_mlnet ,
+ann_sens_nb_mlnet ,
+ann_spec_nb_mlnet ,
+ann_auc_nb_mlnet 
+)
+library(readr)
+comparison_nb <- read_csv("comparison_nb.csv")
+#comparison_nb = comparison_nb %>% cbind(big_data_nb_ann_caret)
+#write.csv(comparison_nb,"comparison_nb.csv", row.names = FALSE)
+
+ggplot(comparison_nb, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_utility_profit_nb),color="red") + 
+  geom_line( aes(y=gbm_utility_profit_nb),color="blue")+
+  geom_line( aes(y=rf_utility_profit_nb),color="green")+
+  geom_line( aes(y=ann_utility_profit_nb),color="black")
+
+ggplot(comparison_nb, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_acc_nb),color="red") + 
+  geom_line( aes(y=gbm_acc_nb),color="blue")+
+  geom_line( aes(y=rf_acc_nb),color="green")+
+  geom_line( aes(y=ann_acc_nb),color="black")
+
+ggplot(comparison_nb, aes(x=iteration)) +
+  
+  geom_line( aes(y=logistic_acc_nb),color="red") + 
+  geom_line( aes(y=ann_auc_nb_mlnet),color="blue")+
+  geom_line( aes(y=ann_acc_nb),color="black")
+
+```
+
+
+#ANN (bets)
+
+```{r}
+ann_acc_b = c()
+ann_profit_b = c()
+ann_utility_profit_b = c()
+ann_sens_b = c()
+ann_spec_b = c()
+ann_auc_b = c()
+
+
+library(caret)
+library(dplyr)
+library(pROC)
+```
+
+
+```{r}
+i=300
+
+for (i in 0:355){
+        
+        start = 500
+        end = 600
+        #iteration = c(iteration, i)
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)             
+        
+
+        
+        set.seed(1)
+        train1=train %>% select(AODD,HODD,TotalOpen,TotalClose,ForaOpen,ForaClose)
+        test1=test %>% select(AODD,HODD,TotalOpen,TotalClose,ForaOpen,ForaClose)
+
+        
+        
+
+
+        numeric_train = train1
+        numeric_test = test1
+        
+        
+        mean_data <- apply(numeric_train, 2, mean)
+        sd_data <- apply(numeric_train, 2, sd)
+        data_scaled_train <- as.data.frame(scale(numeric_train,center = mean_data, scale = sd_data))
+
+      
+        train_sc = data_scaled_train
+        
+        train_sc$HOME_WIN = train$HOME_WIN 
+        train_sc$HOME_WIN = as.numeric(train_sc$HOME_WIN) - 1
+        
+        #TEST
+        
+        mean_data <- apply(numeric_test, 2, mean)
+        sd_data <- apply(numeric_test, 2, sd)
+        data_scaled_test <- as.data.frame(scale(numeric_test,center = mean_data, scale = sd_data))
+
+        
+        test_sc = data_scaled_test
+        
+        test_sc$HOME_WIN = test$HOME_WIN 
+        test_sc$HOME_WIN = as.numeric(test_sc$HOME_WIN) - 1
+        
+        set.seed(1)
+        
+        #net = neuralnet(HOME_WIN~.,data=train_sc,hidden=6,rep=10,linear.output=FALSE)
+        
+        nnetGrid <-  expand.grid(size = seq(from = 1, to = 2, by = 1),decay = seq(from = 0.1, to = 0.5, by = 0.1))
+        
+        
+
+        
+        
+        tune.grid.neuralnet <- expand.grid(
+        layer1 = 5,
+        layer2 = 3,
+        layer3 = 0)
+        
+        model <- train(HOME_WIN~., data = train_sc, 
+               method = "mlpML",
+               tuneGrid = tune.grid.neuralnet)
+        
+        
+        
+        
+        predTrain.nn <- predict(model,train_sc)
+        
+        
+
+        #predTrain.nn <- predict(net,train_sc)
+        Ann.pred.train0.5 = ifelse(predTrain.nn>0.5,1,0)
+        table(Ann.pred.train0.5,train$HOME_WIN)
+        
+
+        
+        #predTest.nn <- predict(net,test_sc)
+        predTest.nn <- predict(model,test_sc)
+
+        
+        Ann.pred.test0.5 = ifelse(predTest.nn>0.5,1,0)
+        
+        table(Ann.pred.test0.5, test$HOME_WIN)
+        
+        
+        
+        
+        
+        
+        
+        accuracyTest.ann = confusionMatrix(as.factor(Ann.pred.test0.5), as.factor(test$HOME_WIN), positive = "1")$overall["Accuracy"]
+
+        accuracyTest.ann
+        
+        sensTest.ann = confusionMatrix(as.factor(Ann.pred.test0.5), as.factor(test$HOME_WIN), positive = "1")$byClass["Sensitivity"]
+        
+        specTest.ann = confusionMatrix(as.factor(Ann.pred.test0.5), as.factor(test$HOME_WIN), positive = "1")$byClass["Specificity"]
+        
+        
+        
+        
+        Ann.pred.train0.5 = as.vector(Ann.pred.train0.5)
+        Ann.pred.test0.5 = as.vector(Ann.pred.test0.5)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        ROCfull = roc(response = test$HOME_WIN, predictor = predTest.nn)
+        
+        ROCfull$auc
+        
+        #table(Ann.pred.train0.5,train1$HOME_WIN)
+        
+        #accuracyTrain.ann = (table(Ann.pred.train0.5,train1$HOME_WIN)[2,2] + table(Ann.pred.train0.5,train1$HOME_WIN)[1,1])/length(Ann.pred.train0.5)
+        
+        
+        
+        Ann.profit = case_when(
+            (Ann.pred.test0.5 == test$HOME_WIN) & (Ann.pred.test0.5 == 1) ~ 100*test$HODD - 100,
+            (Ann.pred.test0.5 == test$HOME_WIN) &(Ann.pred.test0.5 == 0)  ~ 100*test$AODD - 100,
+            Ann.pred.test0.5 != test$HOME_WIN ~ -100
+        )
+        
+        
+        ho = predTest.nn*(test$HODD-1)*100 - (1 - predTest.nn)*100
+        aw = (1 - predTest.nn)*(test$AODD - 1)*100 - (predTest.nn)*100 
+        
+        
+        
+        ann.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (test$HOME_WIN == 1) ~ 100*test$HODD - 100,
+            (ho > aw) & (ho > 0) &(test$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 0)  ~ 100*test$AODD - 100,
+            (ho < aw) & (aw > 0) & (test$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+
+        
+        ann_acc_b = c(ann_acc_b,accuracyTest.ann)
+        ann_profit_b = c(ann_profit_b,sum(Ann.profit))
+        ann_utility_profit_b = c(ann_utility_profit_b,sum(ann.profit_utility))
+        ann_sens_b = c(ann_sens_b,sensTest.ann)
+        ann_spec_b = c(ann_spec_b,specTest.ann)
+        ann_auc_b = c(ann_auc_b, ROCfull$auc)
+        
+        print(i)
+}
+##############
+
+
+```
+
+```{r}
+library(readr)
+iteration = c(0:355)
+bid_dataframe_ann_b = data.frame(
+        ann_acc_b, 
+        ann_profit_b, 
+        ann_utility_profit_b, 
+        ann_sens_b ,
+        ann_spec_b,
+        ann_auc_b
+        )
+
+comparison_b <- read_csv("comparison_b.csv")
+comparison_nb <- read_csv("comparison_nb.csv")
+
+
+#write.csv(comparison_b,"comparison_b.csv", row.names = FALSE)
+
+b_vs_nb = comparison_b %>% inner_join(comparison_nb)
+rm(b_vs_nb)
+
+
+
+ggplot(b_vs_nb, aes(x=iteration)) +
+  
+  geom_line( aes(y=ann_utility_profit_b),color="red") +
+    geom_line( aes(y=logistic_utility_profit_b),color="blue") +
+    geom_line( aes(y=ann_utility_profit_nb),color="green") +
+    geom_line( aes(y=logistic_utility_profit_nb),color="black")
+
+
+```
+#СКРЕПЛЯЮ ВСЕ ТАБЛЫ
+
+```{r}
+comparison <- read_csv("comparison.csv")
+ggplot(comparison, aes(x=iteration)) +
+  geom_line( aes(y=rf_utility_profit),color="red") +
+    geom_line( aes(y=ann_utility_profit),color="blue") +
+    geom_line( aes(y=gbm_utility_profit),color="green") +
+    geom_line( aes(y=logistic_utility_profit),color="black")
+
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=rf_profit_nb),color="blue") +
+    geom_line( aes(y=gbm_profit_nb),color="green") +
+    geom_line( aes(y=logistic_profit_nb),color="black")
+
+
+
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(readr)
+library(ggplot2)
+comparison_nb <- read_csv("comparison_nb.csv")
+comparison_b <- read_csv("comparison_b.csv")
+all_comparison = comparison %>% inner_join(comparison_nb) %>%  inner_join(comparison_b)
+
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=rf_utility_profit),color="red") +
+    geom_line( aes(y=gbm_utility_profit_nb),color="blue") +
+    geom_line( aes(y=rf_utility_profit_nb),color="green") 
+
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=gbm_acc),color="red") +
+    geom_line( aes(y=gbm_acc_b),color="blue") +
+    geom_line( aes(y=gbm_acc_nb),color="green") 
+
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=logistic_utility_profit_nb),color="red") +
+    geom_line( aes(y=rf_utility_profit_nb),color="blue") +
+    geom_line( aes(y=gbm_utility_profit_nb),color="green")+
+    geom_line( aes(y=ann_utility_profit_nb),color="orange")+
+    geom_line( aes(y=ann_utility_profit_nb_mlnet),color="black")
+
+# NB - logist + ann_mlnet
+
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=logistic_utility_profit_b),color="red") +
+    geom_line( aes(y=rf_utility_profit_b),color="blue") +
+    geom_line( aes(y=gbm_utility_profit_b),color="green")+
+    geom_line( aes(y=ann_utility_profit_nb_mlnet),color="black")
+
+# b - GBM + LOGIST
+
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=ann_utility_profit),color="red") +
+    geom_line( aes(y=ann_utility_profit_b),color="blue") +
+    geom_line( aes(y=gbm_utility_profit),color="green")
+    geom_line( aes(y=ann_utility_profit_nb_mlnet),color="black")
+
+# ALL - GBM
+
+
+
+
+
+```
+
+#STACKING 
+
+
+```{r}
+i=0
+```
+
+#STACKING (ALL: GBM ; NB: LOGIST; B: BOOST, LOGIST)
+
+
+```{r}
+st1_acc_b = c()
+st1_profit_b = c()
+st1_utility_profit_b = c()
+st1_sens_b = c()
+st1_spec_b = c()
+st1_auc_b = c()
+```
+
+
+```{r}
+for (i in (0:254)){
+        start = 400
+        end = 600
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        
+        newtest = winner[(end+i+1):(end+i+101),1:length(winner)]
+
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        
+        newtest = newtest  %>% select(-ID,-code,-GDate)
+
+
+
+
+
+#ALL GBM
+        
+          #BOOSTING
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~., data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+        summary(model.boost)
+        
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        
+
+        Test.pred0.5.boost <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+        
+        new_predTestProb.boost = predict(model.boost, newtest, n.trees = 2000, type = "response")
+        
+        new_Test.pred0.5.boost <- ifelse(new_predTestProb.boost> 0.5,1,0)
+
+        
+        
+  
+
+
+
+
+
+
+
+ #NB LOGIST
+
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        
+        newtest = winner[(end+i+1):(end+i+101),1:length(winner)]
+
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        
+        newtest = newtest  %>% select(-ID,-code,-GDate)
+        library(pROC)
+        
+        BETS = c(2,4,5,6,7,8,222)
+
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[-BETS],collapse="+")))
+        
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+        
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.test0.5_nb = ifelse(Log.test > 0.5,1,0)
+        
+        new_Log.test = predict(log.model, newdata = newtest, type = "response")
+        new_Log.pred.test0.5_nb = ifelse(new_Log.test > 0.5,1,0)
+
+        
+        
+        
+  
+        
+        #BETS
+        # LOGIST BETS
+        train = winner[1:(start-1 +i),1:length(winner)]
+        test = winner[(start + i):(end+i),1:length(winner)]
+        
+        newtest = winner[(end+i+1):(end+i+101),1:length(winner)]
+
+        train = train %>% select(-ID,-code,-GDate)
+        test = test %>% select(-ID,-code,-GDate)
+        
+        newtest = newtest  %>% select(-ID,-code,-GDate)
+        library(pROC)
+        
+        BETS = c(2,4,5,6,7,8)
+
+        formula <- as.formula(paste(colnames(train)[222],'~', paste(colnames(train)[BETS],collapse="+")))
+        
+        
+        log.model = glm(formula, data = train, family = binomial(link = 'logit'))
+        
+        Log.test = predict(log.model, newdata = test, type = "response")
+        
+        Log.pred.test0.5_b = ifelse(Log.test > 0.5,1,0)
+
+        
+        new_Log.test = predict(log.model, newdata = newtest, type = "response")
+        
+        new_Log.pred.test0.5_b = ifelse(new_Log.test > 0.5,1,0)
+        
+        
+        
+        
+        
+        #BETS BOOSTING 
+        
+        
+        
+        
+        
+        set.seed(1)
+        model.boost=gbm((as.numeric(HOME_WIN)-1)~AODD+HODD+TotalOpen+TotalClose+ForaOpen+ForaClose, data=train, distribution="bernoulli", n.trees=2000, interaction.depth=5)
+        summary(model.boost)
+        
+        predTestProb.boost = predict(model.boost, test, n.trees = 2000, type = "response")
+        Test.pred0.5.boost_b <- ifelse(predTestProb.boost> 0.5,1,0)
+        
+        
+        new_predTestProb.boost = predict(model.boost, newtest, n.trees = 2000, type = "response")
+        new_Test.pred0.5.boost_b <- ifelse(new_predTestProb.boost> 0.5,1,0)
+        
+
+        
+        
+
+      
+      
+      
+
+      
+      #ВСЕ ПРАВИЛЬНО СУКА?!?!?!??!
+      
+      
+      
+      dataStack =  data.frame(gbm_all = Test.pred0.5.boost, 
+                              log_nb = Log.pred.test0.5_nb, 
+                              #ann_nb = predTest.ann_nb,
+                              log_b = Log.pred.test0.5_b,
+                              gbm_b = Test.pred0.5.boost_b,
+                              HOME_WIN = test$HOME_WIN)
+      
+      
+      model.stack = caret::train(HOME_WIN~., data=(dataStack %>% na.omit() ), method = "ctree")
+      
+      
+      new_predictionsTest = data.frame(gbm_all = new_Test.pred0.5.boost, 
+                              log_nb = new_Log.pred.test0.5_nb, 
+                              #ann_nb = predTest.ann_nb,
+                              log_b = new_Log.pred.test0.5_b,
+                              gbm_b = new_Test.pred0.5.boost_b,
+                              HOME_WIN = newtest$HOME_WIN)
+      
+      
+      new_predTest.stack = predict(model.stack, newdata = new_predictionsTest,"prob")[,2]
+      
+      new_predTest.stack0.5 <- ifelse(new_predTest.stack> 0.5,1,0)
+
+
+
+      
+              accuracyTest.ann = confusionMatrix(as.factor(new_predTest.stack0.5), as.factor(newtest$HOME_WIN), positive = "1")$overall["Accuracy"]
+
+        accuracyTest.ann
+        
+        sensTest.ann = confusionMatrix(as.factor(new_predTest.stack0.5), as.factor(newtest$HOME_WIN), positive = "1")$byClass["Sensitivity"]
+        
+        specTest.ann = confusionMatrix(as.factor(new_predTest.stack0.5), as.factor(newtest$HOME_WIN), positive = "1")$byClass["Specificity"]
+        
+        
+        
+        
+        Ann.pred.train0.5 = as.vector(Ann.pred.train0.5)
+        Ann.pred.test0.5 = as.vector(Ann.pred.test0.5)
+        
+        test$Home=as.character(test$Home)
+        test$Away=as.character(test$Away)
+        
+        ROCfull = roc(response = newtest$HOME_WIN, predictor = new_predTest.stack)
+        
+        ROCfull$auc
+        
+        #table(Ann.pred.train0.5,train1$HOME_WIN)
+        
+        #accuracyTrain.ann = (table(Ann.pred.train0.5,train1$HOME_WIN)[2,2] + table(Ann.pred.train0.5,train1$HOME_WIN)[1,1])/length(Ann.pred.train0.5)
+        
+        
+        
+        stack.profit = case_when(
+            (new_predTest.stack0.5 == newtest$HOME_WIN) & (new_predTest.stack0.5 == 1) ~ 100*newtest$HODD - 100,
+            (new_predTest.stack0.5 == newtest$HOME_WIN) &(new_predTest.stack0.5 == 0)  ~ 100*newtest$AODD - 100,
+            new_predTest.stack0.5 != newtest$HOME_WIN ~ -100
+        )
+        
+        
+        ho = new_predTest.stack*(newtest$HODD-1)*100 - (1 - new_predTest.stack)*100
+        aw = (1 - new_predTest.stack)*(newtest$AODD - 1)*100 - (new_predTest.stack)*100 
+        
+        
+        
+        stack.profit_utility = case_when(
+            (ho > aw) & (ho > 0) & (newtest$HOME_WIN == 1) ~ 100*newtest$HODD - 100,
+            (ho > aw) & (ho > 0) &(newtest$HOME_WIN == 0)  ~ - 100,
+            (ho < aw) & (aw > 0) & (newtest$HOME_WIN == 0)  ~ 100*newtest$AODD - 100,
+            (ho < aw) & (aw > 0) & (newtest$HOME_WIN == 1)  ~  - 100,
+            TRUE~0
+        )
+        sum(stack.profit_utility)
+        
+        
+        st1_acc_b = c(st1_acc_b, accuracyTest.ann)
+        st1_profit_b = c(st1_profit_b, sum(stack.profit))
+        st1_utility_profit_b = c(st1_utility_profit_b, sum(stack.profit_utility))
+        st1_sens_b = c(st1_sens_b,sensTest.ann )
+        st1_spec_b = c(st1_spec_b,specTest.ann )
+        st1_auc_b = c(st1_auc_b,  ROCfull$auc)
+        
+        print(i)
+}      
+      
+              
+```
+
+```{r}
+iteration=c(101:355)
+st_1 = data.frame(
+        st1_acc_b, 
+        st1_profit_b, 
+        st1_utility_profit_b, 
+        st1_sens_b ,
+        st1_spec_b,
+        st1_auc_b,
+        iteration
+        )
+
+write.csv(st_1,"st_1.csv", row.names = FALSE)
+
+
+ggplot(st_1, aes(x=iteration)) +
+    geom_line( aes(y=st1_utility_profit_b),color="red") +
+    geom_line( aes(y=st1_profit_b),color="blue") 
+
+st_vs_ns = st_1 %>% inner_join(all_comparison)
+
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=rf_acc),color="red") +
+    geom_line( aes(y=gbm_acc),color="blue") +
+    geom_line( aes(y=logistic_acc),color="orange") 
+
+
+```
+
+
+```{r}
+all_comparison2 = all_comparison %>% select(-ann_acc_nb, -ann_acc_nb_mlnet, -ann_auc_nb, -ann_auc_nb_mlnet, -ann_profit_nb, -ann_profit_nb_mlnet, -ann_sens_nb, -ann_sens_nb_mlnet, -ann_spec_nb, -ann_spec_nb_mlnet, -ann_utility_profit_nb, -ann_utility_profit_nb_mlnet)
+
+ann_nb_mlnet <- read_csv("ann_nb_mlnet.csv")
+ann_nb <- read_csv("ann_nb.csv")
+
+install.packages("readr", dependencies = TRUE)
+install.packages("devtools")
+devtools::install_github("r-lib/pillar")
+
+library(readr) 
+devtools::install_github()
+all_comparison2 = all_comparison2 %>% cbind(ann_nb) %>% cbind(ann_nb_mlnet)
+library(caret)
+#write.csv(all_comparison2,"FINAL_comparison.csv", row.names = FALSE)
+all_comparison = read_csv("FINAL_comparison.csv")
+
+names(all_comparison)[80]
+
+
+#write.csv(all_comparison,"FINAL_comparison.csv", row.names = FALSE)
+
+all_comparison = read_csv("FINAL_comparison.csv")
+```
+
+
+#LOGIST DIF
+
+```{r}
+library(ggplot2)
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=logistic_acc,color="All Data")) +
+    geom_line( aes(y=logistic_acc_nb,color="Statistic")) +
+    geom_line( aes(y=logistic_acc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+
+
+
+
+    
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=logistic_auc,color="All Data")) +
+    geom_line( aes(y=logistic_auc_nb,color="Statistic")) +
+    geom_line( aes(y=logistic_auc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+  
+    colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=logistic_profit,color="All Data")) +
+    geom_line( aes(y=logistic_profit_nb,color="Statistic")) +
+    geom_line( aes(y=logistic_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=logistic_utility_profit,color="All Data")) +
+    geom_line( aes(y=logistic_utility_profit_nb,color="Statistic")) +
+    geom_line( aes(y=logistic_utility_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+```
+
+#RF DIFDATA
+```{r}
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=rf_acc,color="All Data")) +
+    geom_line( aes(y=rf_acc_nb,color="Statistic")) +
+    geom_line( aes(y=rf_acc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=rf_auc,color="All Data")) +
+    geom_line( aes(y=rf_auc_nb,color="Statistic")) +
+    geom_line( aes(y=rf_auc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+  
+    colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=rf_profit,color="All Data")) +
+    geom_line( aes(y=rf_profit_nb,color="Statistic")) +
+    geom_line( aes(y=rf_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=rf_utility_profit,color="All Data")) +
+    geom_line( aes(y=rf_utility_profit_nb,color="Statistic")) +
+    geom_line( aes(y=rf_utility_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+```
+
+
+#BGM DIFDATA
+
+```{r}
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=gbm_acc,color="All Data")) +
+    geom_line( aes(y=gbm_acc_nb,color="Statistic")) +
+    geom_line( aes(y=gbm_acc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=gbm_auc,color="All Data")) +
+    geom_line( aes(y=gbm_auc_nb,color="Statistic")) +
+    geom_line( aes(y=gbm_auc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+  
+    colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=gbm_profit,color="All Data")) +
+    geom_line( aes(y=gbm_profit_nb,color="Statistic")) +
+    geom_line( aes(y=gbm_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=gbm_utility_profit,color="All Data")) +
+    geom_line( aes(y=gbm_utility_profit_nb,color="Statistic")) +
+    geom_line( aes(y=gbm_utility_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+  ylab("expected value profit")+
+    scale_color_manual(values = colors)
+```
+
+#ANN DIFDATA
+
+```{r}
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=ann_acc,color="All Data")) +
+    geom_line( aes(y=ann_acc_nb,color="Statistic")) +
+    geom_line( aes(y=ann_acc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=ann_auc,color="All Data")) +
+    geom_line( aes(y=ann_auc_nb,color="Statistic")) +
+    geom_line( aes(y=ann_auc_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+  
+    colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=ann_profit,color="All Data")) +
+    geom_line( aes(y=ann_profit_nb,color="Statistic")) +
+    geom_line( aes(y=ann_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+colors <- c("All Data" = "blue", "Statistic" = "red", "Odds" = "green")
+ggplot(all_comparison, aes(x=iteration)) +
+    geom_line( aes(y=ann_utility_profit,color="All Data")) +
+    geom_line( aes(y=ann_utility_profit_nb,color="Statistic")) +
+    geom_line( aes(y=ann_utility_profit_b,color="Odds"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+```
+
+#ТАБЛА
+
+```{r}
+Odds = c(
+  
+mean(c(all_comparison$logistic_acc_b, all_comparison$rf_acc_b , all_comparison$gbm_acc_b,all_comparison$ann_acc_b )),
+  
+  (sd(all_comparison$logistic_acc_b) + sd(all_comparison$rf_acc_b)+ sd(all_comparison$gbm_acc_b) + sd(all_comparison$ann_acc_b))/4,
+  
+mean(c(all_comparison$logistic_profit_b, all_comparison$rf_profit_b , all_comparison$gbm_profit_b,all_comparison$ann_profit_b )),
+
+    (sd(all_comparison$logistic_profit_b) + sd(all_comparison$rf_profit_b)+ sd(all_comparison$gbm_profit_b) + sd(all_comparison$ann_profit_b))/4,
+
+mean(c(all_comparison$logistic_utility_profit_b, all_comparison$rf_utility_profit_b , all_comparison$gbm_utility_profit_b,all_comparison$ann_utility_profit_b )),
+
+    (sd(all_comparison$logistic_utility_profit_b) + sd(all_comparison$rf_utility_profit_b)+ sd(all_comparison$gbm_utility_profit_b) + sd(all_comparison$ann_utility_profit_b))/4
+  )
+
+
+Statistic = c(
+  
+mean(c(all_comparison$logistic_acc_nb, all_comparison$rf_acc_nb , all_comparison$gbm_acc_nb,all_comparison$ann_acc_nb_mlnet )),
+  
+  (sd(all_comparison$logistic_acc_nb) + sd(all_comparison$rf_acc_nb)+ sd(all_comparison$gbm_acc_nb) + sd(all_comparison$ann_acc_nb_mlnet))/4,
+  
+mean(c(all_comparison$logistic_profit_nb, all_comparison$rf_profit_nb , all_comparison$gbm_profit_nb,all_comparison$ann_profit_nb_mlnet )),
+
+    (sd(all_comparison$logistic_profit_nb) + sd(all_comparison$rf_profit_nb)+ sd(all_comparison$gbm_profit_nb) + sd(all_comparison$ann_profit_nb_mlnet))/4,
+
+mean(c(all_comparison$logistic_utility_profit_nb, all_comparison$rf_utility_profit_nb , all_comparison$gbm_utility_profit_nb,all_comparison$ann_utility_profit_nb_mlnet )),
+
+    (sd(all_comparison$logistic_utility_profit_nb) + sd(all_comparison$rf_utility_profit_nb)+ sd(all_comparison$gbm_utility_profit_nb) + sd(all_comparison$ann_utility_profit_nb_mlnet))/4
+  )
+
+
+All_Data = c(
+  
+mean(c(all_comparison$logistic_acc, all_comparison$rf_acc , all_comparison$gbm_acc,all_comparison$ann_acc_mlnet )),
+  
+  (sd(all_comparison$logistic_acc) + sd(all_comparison$rf_acc)+ sd(all_comparison$gbm_acc) + sd(all_comparison$ann_acc_mlnet))/4,
+  
+mean(c(all_comparison$logistic_profit, all_comparison$rf_profit , all_comparison$gbm_profit,all_comparison$ann_profit_mlnet )),
+
+    (sd(all_comparison$logistic_profit) + sd(all_comparison$rf_profit)+ sd(all_comparison$gbm_profit) + sd(all_comparison$ann_profit_mlnet))/4,
+
+mean(c(all_comparison$logistic_utility_profit, all_comparison$rf_utility_profit , all_comparison$gbm_utility_profit,all_comparison$ann_utility_profit_mlnet )),
+
+    (sd(all_comparison$logistic_utility_profit) + sd(all_comparison$rf_utility_profit)+ sd(all_comparison$gbm_utility_profit) + sd(all_comparison$ann_utility_profit_mlnet))/4
+  )
+
+
+
+
+
+
+
+
+compare_difdata = data.frame(Odds,Statistic,All_Data)
+
+rownames(compare_difdata) = c("acc_mean", "acc_sd","prof_mean", "prof_sd", "utility_profit_mean", "utility_profit_sd")
+```
+```{r}
+library(xtable)
+print(xtable(compare_difdata, type = "latex"))
+
+library(memisc)
+
+
+
+```
+
+
+#Сравниваем модели
+
+```{r}
+
+colors <- c("Logistic" = "blue", "Random Forest" = "red", "Boosting" = "green", "ANN" = "black")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=logistic_acc,color="Logistic")) +
+    geom_line( aes(y=rf_acc,color="Random Forest")) +
+    geom_line( aes(y=gbm_acc,color="Boosting"))+
+    geom_line( aes(y=ann_acc_mlnet,color="ANN"))+
+  labs(color = "Type of model") +
+  ylab("accuracy")+
+    scale_color_manual(values = colors)
+
+
+colors <- c("Logistic" = "blue", "Random Forest" = "red", "Boosting" = "green", "ANN" = "black")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=logistic_auc,color="Logistic")) +
+    geom_line( aes(y=rf_auc,color="Random Forest")) +
+    geom_line( aes(y=gbm_auc,color="Boosting"))+
+    geom_line( aes(y=ann_auc_mlnet,color="ANN"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+colors <- c("Logistic" = "blue", "Random Forest" = "red", "Boosting" = "green", "ANN" = "black")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=logistic_profit,color="Logistic")) +
+    geom_line( aes(y=rf_profit,color="Random Forest")) +
+    geom_line( aes(y=gbm_profit,color="Boosting"))+
+    geom_line( aes(y=ann_profit_mlnet,color="ANN"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+
+colors <- c("Logistic" = "blue", "Random Forest" = "red", "Boosting" = "green", "ANN" = "black")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=logistic_utility_profit,color="Logistic")) +
+    geom_line( aes(y=rf_utility_profit,color="Random Forest")) +
+    geom_line( aes(y=gbm_utility_profit,color="Boosting"))+
+    geom_line( aes(y=ann_utility_profit_mlnet,color="ANN"))+
+  labs(color = "Type of model") +
+  ylab("expected value profit")+
+    scale_color_manual(values = colors)
+
+
+
+
+```
+
+
+```{r}
+Logistic = c(
+  
+mean(all_comparison$logistic_acc),
+  
+ sd(all_comparison$logistic_acc),
+  
+mean(all_comparison$logistic_profit),
+
+    sd(all_comparison$logistic_profit),
+
+mean(all_comparison$logistic_utility_profit),
+
+    sd(all_comparison$logistic_utility_profit)
+)
+
+Random_Forest = c(
+  
+mean(all_comparison$rf_acc),
+  
+ sd(all_comparison$rf_acc),
+  
+mean(all_comparison$rf_profit),
+
+    sd(all_comparison$rf_profit),
+
+mean(all_comparison$rf_utility_profit),
+
+    sd(all_comparison$rf_utility_profit)
+)
+
+
+Gbm = c(
+  
+mean(all_comparison$gbm_acc),
+  
+ sd(all_comparison$gbm_acc),
+  
+mean(all_comparison$gbm_profit),
+
+    sd(all_comparison$gbm_profit),
+
+mean(all_comparison$gbm_utility_profit),
+
+    sd(all_comparison$gbm_utility_profit)
+)
+
+
+Ann = c(
+  
+mean(all_comparison$ann_acc_mlnet),
+  
+ sd(all_comparison$ann_acc_mlnet),
+  
+mean(all_comparison$ann_profit_mlnet),
+
+    sd(all_comparison$ann_profit_mlnet),
+
+mean(all_comparison$ann_utility_profit_mlnet),
+
+    sd(all_comparison$ann_utility_profit_mlnet)
+)
+
+
+compare_models = data.frame(Logistic,Random_Forest,Gbm,Ann)
+rownames(compare_models) = c("acc_mean", "acc_sd","prof_mean", "prof_sd", "utility_profit_mean", "utility_profit_sd")
+
+print(xtable(compare_models, type = "latex"))
+
+
+toLatex(compare_models, digits=4)
+
+
+```
+
+#Выбираем модели для сракинга 
+
+
+```{r}
+colors <- c("Logistic" = "blue", "Random Forest" = "red", "Boosting" = "green", "ANN" = "black")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=logistic_acc,color="Logistic")) +
+    geom_line( aes(y=rf_acc,color="Random Forest")) +
+    geom_line( aes(y=gbm_acc,color="Boosting"))+
+    geom_line( aes(y=ann_acc_mlnet,color="ANN"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+colors <- c("Logistic" = "blue", "Random Forest" = "red", "Boosting" = "green", "ANN" = "black")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=logistic_acc_b,color="Logistic")) +
+    geom_line( aes(y=rf_acc_b,color="Random Forest")) +
+    geom_line( aes(y=gbm_acc_b,color="Boosting"))+
+    geom_line( aes(y=ann_acc_b,color="ANN"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+
+
+colors <- c("Logistic" = "blue", "Random Forest" = "red", "Boosting" = "green", "ANN" = "black")
+ggplot(all_comparison, aes(x=iteration),) +
+    geom_line( aes(y=logistic_acc_nb,color="Logistic")) +
+    geom_line( aes(y=rf_acc_nb,color="Random Forest")) +
+    geom_line( aes(y=gbm_acc_nb,color="Boosting"))+
+    geom_line( aes(y=ann_acc_nb_mlnet,color="ANN"))+
+  labs(color = "Type of data") +
+    scale_color_manual(values = colors)
+```
+
+
+
+
+
+

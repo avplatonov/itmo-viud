@@ -1,0 +1,94 @@
+---
+title: "MERGING_ALL"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+stats <- read_excel("KURSACH/FinalOT.xlsx")
+```
+
+```{r}
+library(readxl)
+main <- read_excel("KURSACH/FinalCodes.xlsx")
+main$ID=c(1:length(main$year))
+
+acr <- read_excel("KURSACH/acronym.xlsx")
+acr$acr=ifelse(acr$acr=="CHA","CHO",acr$acr)
+acr$acr=ifelse(acr$acr=="PHX","PHO",acr$acr)
+acr$acr=ifelse(acr$acr=="BKN","BRK",acr$acr)
+main = main %>% inner_join(acr)
+main$day=ifelse(main$day>9,main$day,paste("0",main$day,sep=""))
+
+
+main$newID = paste(main$month,main$day,main$acr,sep="")
+```
+
+```{r}
+library(readxl)
+bets <- read_excel("KURSACH/cleanBets.xlsx")
+bets2<- edit(bets)
+bets=bets2
+bets$newID=paste(bets$Date,bets$Home,sep="")
+```
+
+```{r}
+library(dplyr)
+Everything = main %>% inner_join(bets)
+Everything = Everything  %>% inner_join(stats,by="ID")
+#write.csv(Everything,"KURSACH/Everything.csv")
+```
+
+
+```{r}
+main$newID[!(main$newID %in% bets$newID)]
+bets<- edit(bets)
+```
+
+ÍÀ×ÈÍÀÒÜ ÎÒÑÞÄÎÂÀ
+
+```{r}
+library(readr)
+Everything <- read_csv("KURSACH/Everything.csv")
+```
+
+
+```{r}
+ties <- read_csv("KURSACH/2020season_ties.csv")
+legends <- read_csv("KURSACH/2020season_legends_GOGA_EDITION.csv")
+
+```
+
+```{r}
+names(ties)[1] <- "ties"
+names(ties)[2] <- "changes"
+
+names(legends)[1] = "VF_time"
+names(legends)[2] = "VS_time"
+names(legends)[3] = "VF_availiable"
+names(legends)[4] = "VS_availiable"
+
+names(legends)[5] = "HF_time"
+names(legends)[6] = "HS_time"
+names(legends)[7] = "HF_availiable"
+names(legends)[8] = "HS_availiable"
+```
+
+```{r}
+legends$ID=c(1:length(legends$VF_time))
+ties$ID=c(1:length(ties$ties))
+```
+
+
+```{r}
+library(dplyr)
+Ready=Everything %>% inner_join(legends) %>% inner_join(ties)
+write.csv(Ready,"KURSACH/Untransofrmed_data_27_11.csv")
+```
+
