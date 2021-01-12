@@ -1,0 +1,53 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Console", "ShopCrawler.Console\ShopCrawler.Console.fsproj", "{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{0500FA44-9DB2-40B7-A063-DB905E9A83CD}"
+ProjectSection(SolutionItems) = preProject
+	.gitignore = .gitignore
+EndProjectSection
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Logic", "ShopCrawler.Logic\ShopCrawler.Logic.fsproj", "{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Ebay", "ShopCrawler.Ebay\ShopCrawler.Ebay.fsproj", "{E7A83D67-6003-4046-9E77-D5C5281A23D4}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Common", "ShopCrawler.Common\ShopCrawler.Common.fsproj", "{57C5538A-CA6A-4926-80C9-EF00C035334D}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Service", "ShopCrawler.Service\ShopCrawler.Service.fsproj", "{1D185BFD-23DD-481F-AF21-31DE5230443F}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopwCrawler.Visual", "ShopwCrawler.Visual\ShopwCrawler.Visual.fsproj", "{9F63CFF4-A0C1-4CD0-B64B-BE66B606A932}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ShopCrawler.Analyze", "ShopCrawler.Analyze\ShopCrawler.Analyze.fsproj", "{ED5F029F-2419-4DAC-993B-9B75C064912D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{747FA916-F537-4E7D-8E0B-4FBE1C6B5064}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9E1A69D-CCC9-4C54-87A3-DABA85572A87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7A83D67-6003-4046-9E77-D5C5281A23D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57C5538A-CA6A-4926-80C9-EF00C035334D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1D185BFD-23DD-481F-AF21-31DE5230443F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ED5F029F-2419-4DAC-993B-9B75C064912D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED5F029F-2419-4DAC-993B-9B75C064912D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F63CFF4-A0C1-4CD0-B64B-BE66B606A932}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F63CFF4-A0C1-4CD0-B64B-BE66B606A932}.Debug|Any CPU.Build.0 = Debug|Any CPU
+	EndGlobalSection
+EndGlobal

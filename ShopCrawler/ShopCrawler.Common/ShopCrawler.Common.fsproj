@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Include="Encoding.fs" />
+      <Compile Include="Utils.fs" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="mongocsharpdriver" Version="2.11.3" />
+      <PackageReference Include="MongoDB.Driver" Version="2.11.3" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>netcoreapp3.1</TargetFramework>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Program.fs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="mongocsharpdriver" Version="2.11.5"/>
+        <PackageReference Include="MongoDB.Driver" Version="2.11.5"/>
+        <PackageReference Include="MongoDB.FSharp" Version="0.1.0"/>
+        <PackageReference Include="XPlot.GoogleCharts" Version="3.0.1"/>
+        <PackageReference Include="XPlot.Plotly" Version="3.0.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ShopCrawler.Common\ShopCrawler.Common.fsproj"/>
+        <ProjectReference Include="..\ShopCrawler.Ebay\ShopCrawler.Ebay.fsproj"/>
+    </ItemGroup>
+
+</Project>
