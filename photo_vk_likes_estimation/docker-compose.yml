@@ -1,0 +1,46 @@
+version: "3.5"
+
+services:
+  photolikes-python-base:
+    image: "photolikes-python-base"
+    build: "."
+    # start: false - no such feature yet, only heated discussions on Github :(
+
+  photolikes-web:
+    image: "photolikes-web"
+    build:
+      context: "."
+      dockerfile: "./frontend_app/Dockerfile"
+
+    depends_on:
+      - photolikes-python-base
+
+    ports:
+      - "12000:12000"
+
+    restart: unless-stopped
+
+  photolikes-scheduler:
+    image: "photolikes-scheduler"
+    build:
+      context: "."
+      dockerfile: "./scheduler/Dockerfile"
+
+    depends_on:
+      - photolikes-python-base
+
+    restart: unless-stopped
+
+  photolikes-mongodb:
+    image: "mongo:4.4"
+    ports:
+      - "27018:27017"
+    expose:
+      - "27017"
+    volumes:
+      - mongodb_data:/data/db
+
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:

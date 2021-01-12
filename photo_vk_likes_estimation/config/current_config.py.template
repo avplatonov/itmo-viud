@@ -1,0 +1,20 @@
+"""
+Every deploy of this project (in development and in production) should have a config/current_config.py file.
+The fact that this file is NOT COMMITTED to VCS (that's part of the reason why you must create it) allows developers to:
+    1) replace default config values with developer-specific ones (may be handy for local dev database name, for ex.)
+    2) use secrets (tokens, API keys, etc.) without exposing them for everyone that has access to the source code
+
+What is required now:
+1) Copy the content below to src/config/current_config.py
+2) Define your own CurrentConfig there. Specify values for all annotated attributes
+   (see the top of config.base_config.BaseConfig class)
+   (unfortunately, I couldn't find a way to "statically" check this and support inheritance with default values at the
+    same time even with dataclasses as of Python 3.7 - https://bugs.python.org/issue36077)
+3) You're good to go - run the project.
+"""
+
+from config.base_config import DevelopmentConfig
+
+
+class CurrentConfig(DevelopmentConfig):
+    ...
